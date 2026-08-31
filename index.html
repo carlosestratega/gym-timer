@@ -185,6 +185,13 @@
   </div>
   <div class="list" id="listPerf"></div>
   <button class="add" id="addPerf">＋ Nuevo perfil</button>
+  <div class="row" id="filaNube" hidden>
+    <div class="info" style="cursor:default">
+      <div class="n" id="nubeTit">☁️ Copia en la nube</div>
+      <div class="s" id="nubeSub">Desactivada · todo se guarda solo en este móvil</div>
+    </div>
+    <button class="icb" id="nubeBtn" style="width:auto;padding:0 14px;font-size:14px;font-weight:800">ENTRAR</button>
+  </div>
 </div>
 
 <!-- ============ DÍAS ============ -->
@@ -302,7 +309,11 @@
     }
     if (!perfil()) DB.activo = DB.perfiles[0].id;
   }
-  function guardar(){ try{ localStorage.setItem('gt.db', JSON.stringify(DB)); }catch(e){} }
+  function guardar(){
+    DB.ts = Date.now();
+    try{ localStorage.setItem('gt.db', JSON.stringify(DB)); }catch(e){}
+    if (typeof subirNube === 'function') subirNube();
+  }
   function perfil(){
     for (var i=0;i<DB.perfiles.length;i++) if (DB.perfiles[i].id === DB.activo) return DB.perfiles[i];
     return null;
@@ -900,8 +911,96 @@
     'Curl martillo 3x10-12 1:30'
   ].join('\n');
 
+
+  /* ============ copia en la nube (opcional) ============ */
+  /* Sin esto la app funciona igual: todo vive en el móvil. Al entrar con
+     Google, cada cambio se sube y se baja lo que hayas tocado en otro sitio.
+     Gana siempre la versión con la marca de tiempo más reciente. */
+  var FB = null;   // <-- aquí va la configuración de Firebase
+  var nube = { listo:false, uid:null, email:null, t:null, off:null, fs:null, auth:null, db:null };
+
+  async function abrirNube(){
+    if (nube.listo) return true;
+    if (!FB) return false;
+    var base = 'https://www.gstatic.com/firebasejs/10.12.5/';
+    var appM  = await import(base + 'firebase-app.js');
+    var authM = await import(base + 'firebase-auth.js');
+    var fsM   = await import(base + 'firebase-firestore.js');
+    var app = appM.initializeApp(FB);
+    nube.authM = authM; nube.fs = fsM;
+    nube.auth = authM.getAuth(app);
+    nube.db = fsM.getFirestore(app);
+    nube.listo = true;
+    authM.onAuthStateChanged(nube.auth, function(u){
+      nube.uid = u ? u.uid : null;
+      nube.email = u ? (u.email || '') : null;
+      if (nube.off){ nube.off(); nube.off = null; }
+      if (u) escucharNube();
+      pintarNube();
+    });
+    try { await authM.getRedirectResult(nube.auth); } catch(e){}
+    return true;
+  }
+
+  function escucharNube(){
+    var ref = nube.fs.doc(nube.db, 'usuarios', nube.uid);
+    nube.off = nube.fs.onSnapshot(ref, function(snap){
+      var d = snap.data();
+      if (!d || !d.db){ subirNube(true); return; }        // primera vez: sube lo de aquí
+      if ((d.ts || 0) > (DB.ts || 0)){                    // lo de la nube es más nuevo
+        DB = d.db; DB.ts = d.ts;
+        try{ localStorage.setItem('gt.db', JSON.stringify(DB)); }catch(e){}
+        if (!perfil()) DB.activo = DB.perfiles[0].id;
+        pintarInicio(); pintarPerfiles();
+      }
+    }, function(){});
+  }
+
+  function subirNube(ya){
+    if (!nube.uid) return;
+    clearTimeout(nube.t);
+    nube.t = setTimeout(function(){
+      try {
+        nube.fs.setDoc(nube.fs.doc(nube.db, 'usuarios', nube.uid), { db:DB, ts:DB.ts || Date.now() });
+      } catch(e){}
+    }, ya ? 0 : 1200);
+  }
+
+  async function entrarNube(){
+    var ok = await abrirNube();
+    if (!ok) return;
+    var prov = new nube.authM.GoogleAuthProvider();
+    try {
+      await nube.authM.signInWithPopup(nube.auth, prov);
+    } catch(e){
+      // en la app instalada de iOS la ventana emergente suele estar bloqueada
+      try { await nube.authM.signInWithRedirect(nube.auth, prov); }
+      catch(e2){ alert('No he podido abrir el acceso de Google. Prueba a entrar desde Safari.'); }
+    }
+  }
+
+  function pintarNube(){
+    if (!FB) return;
+    $('filaNube').hidden = false;
+    if (nube.uid){
+      $('nubeTit').textContent = '☁️ Copia en la nube activada';
+      $('nubeSub').textContent = nube.email || 'sincronizando';
+      $('nubeBtn').textContent = 'SALIR';
+    } else {
+      $('nubeTit').textContent = '☁️ Copia en la nube';
+      $('nubeSub').textContent = 'Desactivada · todo se guarda solo en este móvil';
+      $('nubeBtn').textContent = 'ENTRAR';
+    }
+  }
+  $('nubeBtn').addEventListener('click', function(){
+    if (nube.uid) nube.authM.signOut(nube.auth);
+    else entrarNube();
+  });
+
   /* ============ arranque ============ */
   cargar();
+  pintarNube();
+  if (FB) abrirNube().catch(function(){});
   $('snd').addEventListener('click', probarSonido);
   elRun.addEventListener('click', pausa);
   $('stop').addEventListener('click', function(e){ e.stopPropagation(); cortarDescanso(); });
