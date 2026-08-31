@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Gym Timer</title>
+<meta name="theme-color" content="#0b0d10">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="Temporizadores de entrenamiento. Sin registro, sin anuncios.">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+  :root{
+    --bg:#0b0d10;
+    --card:#171b21;
+    --card-2:#1e232b;
+    --line:#2a313b;
+    --txt:#f2f5f8;
+    --dim:#8b95a3;
+    --work:#b6ff3a;
+    --rest:#38bdf8;
+    --gap:clamp(6px,1.1vmin,12px);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;overscroll-behavior:none}
+  body{
+    background:var(--bg);color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,system-ui,sans-serif;
+    font-variant-numeric:tabular-nums;
+    overflow:hidden;
+    -webkit-user-select:none;user-select:none;
+    touch-action:manipulation;
+  }
+  #app{
+    height:100vh;height:100dvh;
+    display:flex;flex-direction:column;gap:var(--gap);
+    padding:calc(var(--gap) + env(safe-area-inset-top)) calc(var(--gap) + env(safe-area-inset-right)) calc(var(--gap) + env(safe-area-inset-bottom)) calc(var(--gap) + env(safe-area-inset-left));
+    max-width:1200px;margin:0 auto;width:100%;
+  }
+
+  /* ---------- barra de ajustes ---------- */
+  .bar{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap);flex:0 0 auto}
+  .ctrl{
+    background:var(--card);border:1px solid var(--line);border-radius:14px;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:clamp(4px,.8vmin,8px) clamp(6px,1vmin,10px);
+    gap:4px;min-height:clamp(46px,7.5vmin,64px);
+  }
+  .ctrl .lbl{font-size:clamp(9px,1.5vmin,12px);letter-spacing:.14em;color:var(--dim);font-weight:700}
+  .ctrl .val{font-size:clamp(16px,3vmin,24px);font-weight:800;line-height:1;min-width:3.2em;text-align:center}
+  .ctrl .val.off{color:var(--dim);font-weight:700}
+  .mid{display:flex;flex-direction:column;align-items:center;gap:2px}
+  .step{
+    width:clamp(32px,5.2vmin,44px);height:clamp(32px,5.2vmin,44px);flex:0 0 auto;
+    border:0;border-radius:11px;background:var(--card-2);color:var(--txt);
+    font-size:clamp(17px,2.8vmin,23px);font-weight:700;line-height:1;cursor:pointer;
+  }
+  .step:active{background:#333c48;transform:scale(.94)}
+
+  /* ---------- rejilla de tiempos ---------- */
+  .grid{
+    flex:1 1 auto;display:grid;gap:var(--gap);min-height:0;
+    grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(4,1fr);
+  }
+  @media (orientation:landscape){
+    .grid{grid-template-columns:repeat(6,1fr);grid-template-rows:repeat(2,1fr)}
+  }
+  .t{
+    border:1px solid var(--line);border-radius:16px;background:var(--card);
+    color:var(--txt);cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    font-weight:800;line-height:1;
+    font-size:clamp(22px,min(9vw,6.4vh),58px);
+    letter-spacing:-.02em;
+    transition:transform .06s ease, background .12s ease;
+  }
+  .t:active{transform:scale(.96);background:var(--work);color:#0b0d10;border-color:var(--work)}
+  .t .tot{font-size:.32em;font-weight:700;color:var(--dim);letter-spacing:.02em}
+  .t:active .tot{color:#0b0d10;opacity:.7}
+
+  /* ---------- pantalla en marcha ---------- */
+  .run{
+    position:fixed;inset:0;background:var(--bg);z-index:10;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:clamp(10px,2.5vmin,24px);
+    --ring:min(70vmin,520px);
+    padding:calc(env(safe-area-inset-top) + 8px) 8px calc(env(safe-area-inset-bottom) + 8px);
+  }
+  .run[hidden]{display:none}
+  .phase{
+    font-size:clamp(13px,2.6vmin,20px);font-weight:800;letter-spacing:.2em;
+    color:var(--dim);text-transform:uppercase;text-align:center;
+  }
+  .phase b{color:var(--acc,var(--work))}
+  .ring{
+    width:var(--ring);aspect-ratio:1;border-radius:50%;
+    background:conic-gradient(var(--acc,var(--work)) calc(var(--p,1)*360deg), #202832 0);
+    display:grid;place-items:center;
+  }
+  .ring .in{
+    width:88%;height:88%;border-radius:50%;background:var(--bg);
+    display:grid;place-items:center;
+  }
+  .big{
+    font-size:calc(var(--ring) * .30);font-weight:800;letter-spacing:-.04em;line-height:1;
+    color:var(--acc,var(--work));
+  }
+  .hint{font-size:clamp(12px,2.2vmin,17px);color:var(--dim);font-weight:600;letter-spacing:.04em}
+  .stop{
+    position:fixed;top:calc(env(safe-area-inset-top) + 10px);right:calc(env(safe-area-inset-right) + 12px);
+    width:clamp(42px,6.5vmin,56px);height:clamp(42px,6.5vmin,56px);
+    border:1px solid var(--line);border-radius:50%;background:var(--card);color:var(--txt);
+    font-size:clamp(18px,3vmin,24px);line-height:1;cursor:pointer;z-index:11;
+  }
+  .stop:active{background:#3a2226;border-color:#7a2d38}
+  .paused .big{opacity:.42}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="bar">
+    <div class="ctrl">
+      <button class="step" data-set="s" data-d="-1" aria-label="menos series">−</button>
+      <div class="mid"><span class="lbl">SERIES</span><span class="val off" id="vS">OFF</span></div>
+      <button class="step" data-set="s" data-d="1" aria-label="más series">+</button>
+    </div>
+    <div class="ctrl">
+      <button class="step" data-set="r" data-d="-1" aria-label="menos descanso">−</button>
+      <div class="mid"><span class="lbl">DESCANSO</span><span class="val off" id="vR">OFF</span></div>
+      <button class="step" data-set="r" data-d="1" aria-label="más descanso">+</button>
+    </div>
+  </div>
+  <div class="grid" id="grid"></div>
+</div>
+
+<div class="run" id="run" hidden>
+  <button class="stop" id="stop" aria-label="parar">✕</button>
+  <div class="phase" id="phase">SERIE <b>1</b> / 5</div>
+  <div class="ring" id="ring"><div class="in"><div class="big" id="big">00:00</div></div></div>
+  <div class="hint" id="hint">Toca para pausar</div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ============ datos ============ */
+  var TIMES  = [15,30,45,60,75,90,105,120,135,150,165,180];
+  var SERIES = [1,2,3,4,5,6,7,8,10,12,15,20];
+  var RESTS  = [0,10,15,20,30,45,60,90,120,180];
+
+  var sIdx = +(localStorage.getItem('gt.s') || 0);
+  var rIdx = +(localStorage.getItem('gt.r') || 0);
+  if (!(sIdx >= 0 && sIdx < SERIES.length)) sIdx = 0;
+  if (!(rIdx >= 0 && rIdx < RESTS.length))  rIdx = 0;
+
+  var $ = function(id){ return document.getElementById(id); };
+  function fmt(s){
+    s = Math.max(0, Math.ceil(s - 0.0001));
+    var m = Math.floor(s/60), r = s%60;
+    return (m<10?'0':'')+m+':'+(r<10?'0':'')+r;
+  }
+
+  /* ============ audio (programado por adelantado) ============ */
+  var ctx = null, nodes = [];
+  function audio(){
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    if (!ctx) ctx = new AC();
+    if (ctx.state === 'suspended') ctx.resume();
+    return ctx;
+  }
+  function beep(at, dur, freq, vol){
+    var o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'square';
+    o.frequency.setValueAtTime(freq, at);
+    g.gain.setValueAtTime(0.0001, at);
+    g.gain.exponentialRampToValueAtTime(vol, at + 0.012);
+    g.gain.setValueAtTime(vol, at + dur - 0.04);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(at); o.stop(at + dur + 0.03);
+    nodes.push(o);
+  }
+  function silence(){
+    for (var i=0;i<nodes.length;i++){ try{ nodes[i].stop(); }catch(e){} }
+    nodes = [];
+  }
+  // patrones: [offset, duración, frecuencia]
+  var ALARM = [[0,.22,880],[.42,.22,880],[.84,.22,880],[1.26,.22,880],[1.85,1.25,1245]]; // ~3,1 s
+  var SHORT = [[0,.2,880],[.36,.2,880],[.72,.55,1245]];                                   // ~1,3 s
+  var GO    = [[0,.6,1245]];
+  function schedule(secs, pattern, ticks){
+    if (!audio()) return;
+    var t0 = ctx.currentTime + secs;
+    if (ticks && secs > 3.4){
+      beep(t0-3, .09, 520, .35); beep(t0-2, .09, 520, .35); beep(t0-1, .09, 520, .35);
+    }
+    for (var i=0;i<pattern.length;i++) beep(t0 + pattern[i][0], pattern[i][1], pattern[i][2], .9);
+  }
+  function buzz(ms){ try{ navigator.vibrate && navigator.vibrate(ms); }catch(e){} }
+
+  /* ============ pantalla encendida ============ */
+  var wl = null;
+  function keepAwake(on){
+    if (on){
+      if (navigator.wakeLock && !wl) navigator.wakeLock.request('screen').then(function(l){ wl = l; }).catch(function(){});
+    } else if (wl){
+      try{ wl.release(); }catch(e){}
+      wl = null;
+    }
+  }
+
+  /* ============ estado ============ */
+  var run = null;   // {kind, work, dur, endAt, serie, total, rest, paused, left, ended}
+  var to = null, raf = null;
+  var elRun = $('run'), elBig = $('big'), elRing = $('ring'), elPhase = $('phase'), elHint = $('hint');
+
+  function startPhase(kind, secs){
+    run.kind = kind;
+    run.dur  = secs;
+    run.endAt = performance.now() + secs*1000;
+    run.ended = false;
+    var last = (kind === 'work' && run.serie >= run.total);
+    var pat  = kind === 'rest' ? GO : (last || run.rest > 0 ? ALARM : SHORT);
+    silence();
+    schedule(secs, pat, true);
+    clearTimeout(to);
+    to = setTimeout(phaseEnd, secs*1000);
+    paint(true);
+  }
+
+  function phaseEnd(){
+    if (!run || run.ended) return;
+    run.ended = true;
+    clearTimeout(to);
+    buzz([120,80,120]);
+    if (run.kind === 'rest'){
+      run.serie++;
+      startPhase('work', run.work);
+      return;
+    }
+    if (run.serie < run.total){
+      if (run.rest > 0){ startPhase('rest', run.rest); }
+      else { run.serie++; startPhase('work', run.work); }
+      return;
+    }
+    // terminado: suena la alarma y se cierra solo
+    run.done = true;
+    paint(true);
+    to = setTimeout(stop, 3400);
+  }
+
+  function paint(force){
+    if (!run) return;
+    if (run.done){
+      elPhase.textContent = 'HECHO';
+      elBig.textContent = '00:00';
+      elRing.style.setProperty('--p', 0);
+      elHint.textContent = 'Toca para volver';
+      return;
+    }
+    var left = run.paused ? run.left : (run.endAt - performance.now());
+    if (left < 0) left = 0;
+    elBig.textContent = fmt(left/1000);
+    elRing.style.setProperty('--p', run.dur ? (left/1000)/run.dur : 0);
+    if (force){
+      var acc = run.kind === 'rest' ? 'var(--rest)' : 'var(--work)';
+      elRun.style.setProperty('--acc', acc);
+      elPhase.innerHTML = run.total > 1
+        ? (run.kind === 'rest' ? 'DESCANSO · ' : '') + 'SERIE <b>' + run.serie + '</b> / ' + run.total
+        : (run.kind === 'rest' ? 'DESCANSO' : 'EN MARCHA');
+    }
+    elHint.textContent = run.paused ? 'PAUSA · toca para seguir' : 'Toca para pausar';
+  }
+
+  function loop(){
+    if (!run) return;
+    if (!run.paused && !run.done){
+      paint(false);
+      if (performance.now() >= run.endAt) phaseEnd();   // por si el navegador frena el timer
+    }
+    raf = requestAnimationFrame(loop);
+  }
+
+  function start(secs){
+    audio();                       // desbloquea el sonido con este toque
+    run = { kind:'work', work:secs, dur:secs, serie:1, total:SERIES[sIdx],
+            rest:RESTS[rIdx], paused:false, left:0, ended:false, done:false };
+    elRun.hidden = false;
+    elRun.classList.remove('paused');
+    keepAwake(true);
+    startPhase('work', secs);
+    cancelAnimationFrame(raf); raf = requestAnimationFrame(loop);
+  }
+
+  function togglePause(){
+    if (!run || run.done) { stop(); return; }
+    if (run.paused){
+      run.paused = false;
+      run.endAt = performance.now() + run.left;
+      run.ended = false;
+      var last = (run.kind === 'work' && run.serie >= run.total);
+      silence();
+      schedule(run.left/1000, run.kind === 'rest' ? GO : (last || run.rest > 0 ? ALARM : SHORT), true);
+      clearTimeout(to); to = setTimeout(phaseEnd, run.left);
+      elRun.classList.remove('paused');
+      keepAwake(true);
+    } else {
+      run.paused = true;
+      run.left = Math.max(0, run.endAt - performance.now());
+      silence(); clearTimeout(to);
+      elRun.classList.add('paused');
+    }
+    paint(true);
+  }
+
+  function stop(){
+    silence(); clearTimeout(to); cancelAnimationFrame(raf);
+    run = null; raf = null;
+    elRun.hidden = true;
+    elRun.classList.remove('paused');
+    keepAwake(false);
+  }
+
+  /* ============ interfaz ============ */
+  var grid = $('grid');
+  TIMES.forEach(function(s){
+    var b = document.createElement('button');
+    b.className = 't';
+    b.innerHTML = '<span>' + fmt(s) + '</span><span class="tot"></span>';
+    b.addEventListener('click', function(){ start(s); });
+    grid.appendChild(b);
+  });
+
+  function drawSettings(){
+    var n = SERIES[sIdx], r = RESTS[rIdx];
+    $('vS').textContent = n > 1 ? '×' + n : 'OFF';
+    $('vS').className = 'val' + (n > 1 ? '' : ' off');
+    $('vR').textContent = r > 0 ? fmt(r) : 'OFF';
+    $('vR').className = 'val' + (r > 0 ? '' : ' off');
+    var tots = grid.querySelectorAll('.tot');
+    TIMES.forEach(function(s, i){
+      tots[i].textContent = n > 1 ? fmt(n*s + (n-1)*r) : '';
+    });
+    localStorage.setItem('gt.s', sIdx);
+    localStorage.setItem('gt.r', rIdx);
+  }
+
+  document.querySelectorAll('.step').forEach(function(b){
+    b.addEventListener('click', function(){
+      var d = +b.dataset.d;
+      if (b.dataset.set === 's') sIdx = Math.min(SERIES.length-1, Math.max(0, sIdx + d));
+      else                       rIdx = Math.min(RESTS.length-1,  Math.max(0, rIdx + d));
+      drawSettings();
+      buzz(8);
+    });
+  });
+  drawSettings();
+
+  elRun.addEventListener('click', togglePause);
+  $('stop').addEventListener('click', function(e){ e.stopPropagation(); stop(); });
+  document.addEventListener('keydown', function(e){
+    if (e.code === 'Escape' && run) stop();
+    else if (e.code === 'Space' && run){ e.preventDefault(); togglePause(); }
+  });
+  document.addEventListener('visibilitychange', function(){
+    if (!document.hidden && run && !run.paused){
+      keepAwake(true);
+      if (performance.now() >= run.endAt) phaseEnd();
+    }
+  });
+
+  if ('serviceWorker' in navigator){
+    window.addEventListener('load', function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });
+  }
+})();
+</script>
+</body>
+</html>
