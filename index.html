@@ -916,7 +916,14 @@
   /* Sin esto la app funciona igual: todo vive en el móvil. Al entrar con
      Google, cada cambio se sube y se baja lo que hayas tocado en otro sitio.
      Gana siempre la versión con la marca de tiempo más reciente. */
-  var FB = null;   // <-- aquí va la configuración de Firebase
+  var FB = {
+    apiKey:            'AIzaSyBV3ItRJ9gjdZlO6Smc1lPJCPq7MeoOo2U',
+    authDomain:        'gym-timer-b1db0.firebaseapp.com',
+    projectId:         'gym-timer-b1db0',
+    storageBucket:     'gym-timer-b1db0.firebasestorage.app',
+    messagingSenderId: '465354514563',
+    appId:             '1:465354514563:web:10722722d31eb24384fbb6'
+  };
   var nube = { listo:false, uid:null, email:null, t:null, off:null, fs:null, auth:null, db:null };
 
   async function abrirNube(){
