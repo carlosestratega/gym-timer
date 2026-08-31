@@ -1,5 +1,5 @@
 /* Gym Timer — service worker propio, alcance /gym/ */
-var CACHE = 'gym-timer-v11';
+var CACHE = 'gym-timer-v12';
 var ASSETS = ['./', './index.html', './manifest.json', './icon.svg', './icon-180.png', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', function(e){
@@ -19,6 +19,10 @@ self.addEventListener('fetch', function(e){
   var req = e.request;
   if (req.method !== 'GET') return;
   if (req.mode === 'navigate'){
+    // el login de Google vive en /__/auth/: que pase de largo, y sobre todo
+    // que no acabe guardado como si fuera la portada de la app
+    var ruta = new URL(req.url).pathname;
+    if (ruta !== '/' && ruta !== '/index.html') return;
     e.respondWith(
       fetch(req).then(function(res){
         var copy = res.clone();

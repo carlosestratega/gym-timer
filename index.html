@@ -954,7 +954,9 @@
      Gana siempre la versión con la marca de tiempo más reciente. */
   var FB = {
     apiKey:            'AIzaSyBV3ItRJ9gjdZlO6Smc1lPJCPq7MeoOo2U',
-    authDomain:        'gym-timer-b1db0.firebaseapp.com',
+    // el login se sirve desde nuestro propio dominio (proxy en vercel.json):
+    // si no, Safari bloquea el almacenamiento entre dominios y la sesión se pierde
+    authDomain:        'gym-timer-wheat.vercel.app',
     projectId:         'gym-timer-b1db0',
     storageBucket:     'gym-timer-b1db0.firebasestorage.app',
     messagingSenderId: '465354514563',
