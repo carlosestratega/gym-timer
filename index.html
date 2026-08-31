@@ -949,6 +949,8 @@
     return true;
   }
 
+  function aviso(txt){ if ($('nubeSub')) $('nubeSub').textContent = txt; }
+
   function escucharNube(){
     var ref = nube.fs.doc(nube.db, 'usuarios', nube.uid);
     nube.off = nube.fs.onSnapshot(ref, function(snap){
@@ -960,16 +962,25 @@
         if (!perfil()) DB.activo = DB.perfiles[0].id;
         pintarInicio(); pintarPerfiles();
       }
-    }, function(){});
+      aviso((nube.email || 'conectado') + ' · al día');
+    }, function(e){
+      aviso(e && e.code === 'permission-denied'
+        ? '⚠️ Reglas de Firestore sin publicar'
+        : '⚠️ ' + ((e && e.code) || 'sin conexión'));
+    });
   }
 
   function subirNube(ya){
     if (!nube.uid) return;
     clearTimeout(nube.t);
     nube.t = setTimeout(function(){
-      try {
-        nube.fs.setDoc(nube.fs.doc(nube.db, 'usuarios', nube.uid), { db:DB, ts:DB.ts || Date.now() });
-      } catch(e){}
+      nube.fs.setDoc(nube.fs.doc(nube.db, 'usuarios', nube.uid), { db:DB, ts:DB.ts || Date.now() })
+        .then(function(){ aviso((nube.email || 'conectado') + ' · guardado'); })
+        .catch(function(e){
+          aviso(e && e.code === 'permission-denied'
+            ? '⚠️ Reglas de Firestore sin publicar'
+            : '⚠️ no se pudo guardar (' + ((e && e.code) || 'error') + ')');
+        });
     }, ya ? 0 : 1200);
   }
 
@@ -977,12 +988,19 @@
     var ok = await abrirNube();
     if (!ok) return;
     var prov = new nube.authM.GoogleAuthProvider();
+    var instalada = (navigator.standalone === true) ||
+                    (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+    aviso('abriendo Google…');
     try {
-      await nube.authM.signInWithPopup(nube.auth, prov);
+      // instalada en la pantalla de inicio: la ventana emergente está bloqueada
+      if (instalada) await nube.authM.signInWithRedirect(nube.auth, prov);
+      else           await nube.authM.signInWithPopup(nube.auth, prov);
     } catch(e){
-      // en la app instalada de iOS la ventana emergente suele estar bloqueada
-      try { await nube.authM.signInWithRedirect(nube.auth, prov); }
-      catch(e2){ alert('No he podido abrir el acceso de Google. Prueba a entrar desde Safari.'); }
+      var c = (e && e.code) || '';
+      if (c.indexOf('popup') >= 0){
+        try { await nube.authM.signInWithRedirect(nube.auth, prov); return; } catch(e2){}
+      }
+      aviso('⚠️ ' + (c === 'auth/unauthorized-domain' ? 'dominio no autorizado' : (c || 'no se pudo entrar')));
     }
   }
 
