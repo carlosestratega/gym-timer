@@ -122,8 +122,19 @@
 
   /* ---------- entreno guiado ---------- */
   .go{align-items:center;justify-content:center;text-align:center}
-  .gotop{position:absolute;top:calc(env(safe-area-inset-top) + 16px);left:0;right:0;
+  .gotop{position:absolute;left:0;right:0;padding:0 12px;line-height:1.35;
+    /* justo debajo de los botones de saltar y salir, para no chocar con ellos */
+    top:calc(env(safe-area-inset-top) + 10px + clamp(42px,6.5vmin,56px) + 10px);
     font-size:clamp(11px,2vmin,14px);letter-spacing:.16em;color:var(--dim);font-weight:800;text-transform:uppercase}
+  .salta{
+    position:fixed;top:calc(env(safe-area-inset-top) + 10px);left:calc(env(safe-area-inset-left) + 12px);
+    height:clamp(42px,6.5vmin,56px);padding:0 14px;
+    border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--txt);
+    font-size:clamp(11px,1.9vmin,13px);font-weight:800;letter-spacing:.08em;cursor:pointer;z-index:11;
+    font-family:inherit;
+  }
+  .salta:active{background:var(--card-2);border-color:var(--work);color:var(--work)}
+  .salta[hidden]{display:none}
   .gotag{font-size:clamp(13px,2.6vmin,20px);font-weight:800;letter-spacing:.2em;color:var(--work);text-transform:uppercase}
   .goname{font-size:clamp(28px,7vmin,64px);font-weight:800;letter-spacing:-.02em;line-height:1.05;margin:6px 0 4px;
     max-width:92vw;overflow-wrap:break-word}
@@ -261,6 +272,7 @@
 <!-- ============ ENTRENO GUIADO ============ -->
 <div id="scGo" class="ov go pad" hidden>
   <button class="stop" id="goX" aria-label="salir">✕</button>
+  <button class="salta" id="goSalta" aria-label="saltar al siguiente ejercicio">SIGUIENTE ⏭</button>
   <div class="gotop" id="goTop"></div>
   <div>
     <div class="gotag" id="goTag"></div>
@@ -730,6 +742,7 @@
     var d = dia(); if (!d || !W) return;
     var n = d.ejercicios.length;
     $('goTop').textContent = d.nombre + ' · ejercicio ' + Math.min(W.iEj+1, n) + '/' + n;
+    $('goSalta').hidden = (W.fase === 'fin');
     if (W.fase === 'fin'){
       $('goTag').textContent = '';
       $('goName').textContent = '¡Entreno completo!';
@@ -767,6 +780,20 @@
       else { W.fase = 'fin'; }
       pintarGo();
     });
+  });
+  // Saltar: te plantas en el siguiente ejercicio, listo para hacerlo. Para
+  // cuando empiezas tarde y ya vas por otro cuando te acuerdas de registrarlo.
+  $('goSalta').addEventListener('click', function(){
+    if (!W || W.fase === 'fin') return;
+    var d = dia();
+    if (W.fase === 'siguiente' || W.iEj < d.ejercicios.length - 1){
+      if (W.fase !== 'siguiente') W.iEj++;
+      W.serie = 1; W.fase = 'hacer';
+    } else {
+      W.fase = 'fin';
+    }
+    buzz(10);
+    pintarGo();
   });
   $('goX').addEventListener('click', function(){ W = null; keepAwake(false); inicio(); });
 
