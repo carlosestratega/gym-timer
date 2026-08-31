@@ -27,6 +27,8 @@
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
   html,body{height:100%;overscroll-behavior:none}
   body{
+    /* fijo al viewport: inmune a la barra de Safari, sin rebote ni temblor */
+    position:fixed;inset:0;width:100%;
     background:var(--bg);color:var(--txt);
     font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,system-ui,sans-serif;
     font-variant-numeric:tabular-nums;
@@ -35,7 +37,7 @@
     touch-action:manipulation;
   }
   #app{
-    height:100vh;height:100dvh;
+    height:100%;
     display:flex;flex-direction:column;gap:var(--gap);
     padding:calc(var(--gap) + env(safe-area-inset-top)) calc(var(--gap) + env(safe-area-inset-right)) calc(var(--gap) + env(safe-area-inset-bottom)) calc(var(--gap) + env(safe-area-inset-left));
     max-width:1200px;margin:0 auto;width:100%;
