@@ -156,9 +156,21 @@
   .ring{width:var(--ring);aspect-ratio:1;border-radius:50%;
     background:conic-gradient(var(--acc,var(--work)) calc(var(--p,1)*360deg), #202832 0);
     display:grid;place-items:center}
+  .ring[hidden]{display:none}   /* si no, display:grid le gana al hidden */
   .ring .in{width:88%;height:88%;border-radius:50%;background:var(--bg);display:grid;place-items:center}
   .big{font-size:calc(var(--ring) * .30);font-weight:800;letter-spacing:-.04em;line-height:1;color:var(--acc,var(--work))}
   .big.go{font-size:calc(var(--ring) * .34)}
+  /* el aviso de siguiente ejercicio no cabe en el anillo: ocupa la pantalla */
+  .avisoBig{
+    font-size:clamp(24px,min(7.6vw,5.2vh),54px);font-weight:800;line-height:1.08;
+    letter-spacing:-.01em;text-align:center;max-width:88vw;overflow-wrap:break-word;
+    color:var(--acc,var(--work));
+  }
+  .avisoBig[hidden]{display:none}
+  .avisoBig .prep{
+    display:block;margin-top:clamp(10px,2.5vmin,20px);font-size:.4em;color:var(--dim);
+    letter-spacing:.18em;text-transform:uppercase;font-weight:800;
+  }
   .stop{position:fixed;top:calc(env(safe-area-inset-top) + 10px);right:calc(env(safe-area-inset-right) + 12px);
     width:clamp(42px,6.5vmin,56px);height:clamp(42px,6.5vmin,56px);
     border:1px solid var(--line);border-radius:50%;background:var(--card);color:var(--txt);
@@ -290,6 +302,7 @@
   <button class="stop" id="stop" aria-label="parar">✕</button>
   <div class="phase" id="phase">DESCANSO</div>
   <div class="ring" id="ring"><div class="in"><div class="big" id="big">00:00</div></div></div>
+  <div class="avisoBig" id="avisoBig" hidden></div>
   <div class="hint" id="hint">Toca para pausar</div>
 </div>
 
@@ -420,6 +433,26 @@
   }
   function buzz(ms){ try{ navigator.vibrate && navigator.vibrate(ms); }catch(e){} }
 
+  // La voz del sistema: para enterarte del siguiente ejercicio sin mirar.
+  var vozLista = false;
+  function hablar(txt){
+    try{
+      if (!window.speechSynthesis) return;
+      window.speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(txt);
+      u.lang = 'es-ES'; u.rate = 1; u.pitch = 1; u.volume = 1;
+      window.speechSynthesis.speak(u);
+    }catch(e){}
+  }
+  function desbloquearVoz(){
+    try{
+      if (vozLista || !window.speechSynthesis) return;
+      var u = new SpeechSynthesisUtterance(' ');
+      u.volume = 0; window.speechSynthesis.speak(u);
+      vozLista = true;
+    }catch(e){}
+  }
+
   /* ============ pantalla encendida ============ */
   var wl = null;
   function keepAwake(on){
@@ -433,13 +466,15 @@
   var elRun = $('run'), elBig = $('big'), elRing = $('ring'), elPhase = $('phase'), elHint = $('hint');
 
   // secs: duración · etiqueta: texto de cabecera · alFinal: qué hacer al acabar
-  function empezarDescanso(secs, etiqueta, alFinal){
-    audio(); keepAudioAlive(true);
+  function empezarDescanso(secs, etiqueta, alFinal, mensaje){
+    audio(); keepAudioAlive(true); desbloquearVoz();
     run = { dur:secs, endAt:performance.now() + secs*1000, paused:false, left:0,
-            ended:false, go:false, etiqueta:etiqueta||'DESCANSO', alFinal:alFinal||null };
+            ended:false, go:false, etiqueta:etiqueta||'DESCANSO', alFinal:alFinal||null,
+            mensaje:mensaje||null };
     elRun.hidden = false;
     elRun.classList.remove('paused');
-    elBig.classList.remove('go');
+    elBig.className = 'big';
+    elRing.hidden = false; $('avisoBig').hidden = true;
     keepAwake(true);
     silence(); programarAvisos(secs);
     clearTimeout(to); to = setTimeout(finDescanso, secs*1000);
@@ -454,16 +489,34 @@
     setAcc('var(--work)'); pintar(true);
     // el pitido largo suena solo y el temporizador se cierra solo:
     // te quedas listo para la siguiente serie sin tocar la pantalla.
-    var cb = run.alFinal;
-    to = setTimeout(function(){ cerrarDescanso(); if (cb) cb(); }, GO_DUR*1000 + 200);
+    var cb = run.alFinal, msg = run.mensaje;
+    var espera = GO_DUR*1000 + 200;
+    if (msg && msg.voz){
+      // primero suena el pitido, después la voz: si no, se pisan
+      setTimeout(function(){ hablar(msg.voz); }, GO_DUR*1000 + 150);
+      espera = GO_DUR*1000 + 3000;
+    }
+    to = setTimeout(function(){ cerrarDescanso(); if (cb) cb(); }, espera);
   }
   function setAcc(c){ if (c !== acc){ acc = c; elRun.style.setProperty('--acc', c); } }
   function pintar(forzar){
     if (!run) return;
     if (run.go){
-      elPhase.textContent = 'A ENTRENAR';
-      elBig.textContent = '¡YA!'; elBig.classList.add('go');
-      elRing.style.setProperty('--p', 1);
+      var m = run.mensaje;
+      elPhase.innerHTML = m ? m.titulo : 'A ENTRENAR';
+      elRing.hidden = !!m;
+      $('avisoBig').hidden = !m;
+      if (m){
+        $('avisoBig').innerHTML = '';
+        $('avisoBig').appendChild(document.createTextNode(m.nombre));
+        var sp = document.createElement('span');
+        sp.className = 'prep'; sp.textContent = m.sub;
+        $('avisoBig').appendChild(sp);
+      } else {
+        elBig.textContent = '¡YA!';
+        elBig.className = 'big go';
+        elRing.style.setProperty('--p', 1);
+      }
       elHint.textContent = 'Se para solo';
       return;
     }
@@ -506,6 +559,7 @@
     keepAudioAlive(false);
     run = null; raf = null;
     elRun.hidden = true; elRun.classList.remove('paused');
+    elRing.hidden = false; $('avisoBig').hidden = true;
     keepAwake(false);
   }
   // ✕ : corta el descanso sin dar la serie por hecha
@@ -772,14 +826,25 @@
     if (W.fase === 'siguiente'){ W.fase = 'hacer'; W.serie = 1; pintarGo(); return; }
     var d = dia(), e = ejActual();
     var ultima = W.serie >= e.series;
+    var sig = (W.iEj < d.ejercicios.length - 1) ? d.ejercicios[W.iEj + 1] : null;
     var et = 'DESCANSO · ' + esc(e.nombre) + ' · SERIE <b>' + W.serie + '</b> / ' + e.series;
+    var msg = null;
+    if (ultima){
+      et = sig ? 'ÚLTIMO DESCANSO · LUEGO <b>' + esc(sig.nombre) + '</b>'
+               : 'ÚLTIMO DESCANSO DEL ENTRENO';
+      msg = sig
+        ? { titulo:'PRÓXIMO EJERCICIO', nombre:sig.nombre, sub:'Prepárate',
+            voz:'Próximo ejercicio: ' + sig.nombre + '. Prepárate.' }
+        : { titulo:'ENTRENO COMPLETO', nombre:'¡Hecho!', sub:'Buen trabajo',
+            voz:'Entreno completo. Buen trabajo.' };
+    }
     empezarDescanso(e.descanso, et, function(){
       if (!W) return;
       if (!ultima){ W.serie++; }
       else if (W.iEj < d.ejercicios.length - 1){ W.iEj++; W.fase = 'siguiente'; }
       else { W.fase = 'fin'; }
       pintarGo();
-    });
+    }, msg);
   });
   // Saltar: te plantas en el siguiente ejercicio, listo para hacerlo. Para
   // cuando empiezas tarde y ya vas por otro cuando te acuerdas de registrarlo.
@@ -1082,7 +1147,7 @@
     }
   });
   document.addEventListener('pointerdown', function armar(){
-    audio();
+    audio(); desbloquearVoz();
     if (ctx && ctx.state === 'running') document.removeEventListener('pointerdown', armar);
   });
   pintarInicio();
