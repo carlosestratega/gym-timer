@@ -14,14 +14,8 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <style>
   :root{
-    --bg:#0b0d10;
-    --card:#171b21;
-    --card-2:#1e232b;
-    --line:#2a313b;
-    --txt:#f2f5f8;
-    --dim:#8b95a3;
-    --work:#b6ff3a;
-    --warn:#ffb020;
+    --bg:#0b0d10; --card:#171b21; --card-2:#1e232b; --line:#2a313b;
+    --txt:#f2f5f8; --dim:#8b95a3; --work:#b6ff3a; --warn:#ffb020;
     --gap:clamp(6px,1.1vmin,12px);
   }
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -31,114 +25,214 @@
     background:var(--bg);color:var(--txt);
     font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,system-ui,sans-serif;
     font-variant-numeric:tabular-nums;
-    overflow:hidden;
-    -webkit-user-select:none;user-select:none;
-    touch-action:manipulation;
+    overflow:hidden;-webkit-user-select:none;user-select:none;touch-action:manipulation;
   }
-  #app{
-    height:100%;
-    display:flex;flex-direction:column;gap:var(--gap);
+  .pad{
     padding:calc(var(--gap) + env(safe-area-inset-top)) calc(var(--gap) + env(safe-area-inset-right)) calc(var(--gap) + env(safe-area-inset-bottom)) calc(var(--gap) + env(safe-area-inset-left));
-    max-width:1200px;margin:0 auto;width:100%;
   }
+  #app{height:100%;display:flex;flex-direction:column;gap:var(--gap);max-width:1200px;margin:0 auto;width:100%}
 
-  /* ---------- barra superior ---------- */
+  /* ---------- barras ---------- */
   .bar{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap);flex:0 0 auto}
   .ctrl{
     background:var(--card);border:1px solid var(--line);border-radius:14px;
     display:flex;align-items:center;justify-content:space-between;
     padding:clamp(4px,.8vmin,8px) clamp(6px,1vmin,10px);
-    gap:4px;min-height:clamp(46px,7.5vmin,64px);
+    gap:4px;min-height:clamp(46px,7.2vmin,62px);
   }
   .lbl{font-size:clamp(9px,1.5vmin,12px);letter-spacing:.14em;color:var(--dim);font-weight:700}
   .val{font-size:clamp(16px,3vmin,24px);font-weight:800;line-height:1;min-width:3.2em;text-align:center}
   .val.off{color:var(--dim);font-weight:700}
-  .mid{display:flex;flex-direction:column;align-items:center;gap:2px}
+  .mid{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0}
   .step{
     width:clamp(32px,5.2vmin,44px);height:clamp(32px,5.2vmin,44px);flex:0 0 auto;
     border:0;border-radius:11px;background:var(--card-2);color:var(--txt);
     font-size:clamp(17px,2.8vmin,23px);font-weight:700;line-height:1;cursor:pointer;
   }
   .step:active{background:#333c48;transform:scale(.94)}
-  /* botón de probar sonido, ocupa toda su celda */
-  button.ctrl{width:100%;cursor:pointer;justify-content:center;font:inherit}
+  button.ctrl{width:100%;cursor:pointer;justify-content:center;font:inherit;overflow:hidden}
   button.ctrl:active{background:var(--card-2)}
   button.ctrl.ko{border-color:#7a2d38;background:#2a1a1e}
   button.ctrl.ok{border-color:var(--work)}
-  #sndTxt{font-size:clamp(12px,2.1vmin,17px);font-weight:800;letter-spacing:.02em;white-space:nowrap}
+  button.ctrl.acc{background:var(--work);border-color:var(--work);color:#0b0d10}
+  button.ctrl.acc:active{background:#9fe22f}
+  .ctxt{font-size:clamp(12px,2.1vmin,17px);font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 
   /* ---------- rejilla de descansos ---------- */
-  .grid{
-    flex:1 1 auto;display:grid;gap:var(--gap);min-height:0;
-    grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(4,1fr);
-  }
-  @media (orientation:landscape){
-    .grid{grid-template-columns:repeat(6,1fr);grid-template-rows:repeat(2,1fr)}
-  }
+  .grid{flex:1 1 auto;display:grid;gap:var(--gap);min-height:0;
+    grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(4,1fr)}
+  @media (orientation:landscape){ .grid{grid-template-columns:repeat(6,1fr);grid-template-rows:repeat(2,1fr)} }
   .t{
-    border:1px solid var(--line);border-radius:16px;background:var(--card);
-    color:var(--txt);cursor:pointer;
-    display:flex;align-items:center;justify-content:center;
-    font-weight:800;line-height:1;
-    font-size:clamp(22px,min(9vw,6.4vh),58px);
-    letter-spacing:-.02em;
+    border:1px solid var(--line);border-radius:16px;background:var(--card);color:var(--txt);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;font-weight:800;line-height:1;
+    font-size:clamp(20px,min(8.4vw,5.6vh),54px);letter-spacing:-.02em;
     transition:transform .06s ease, background .12s ease;
   }
   .t:active{transform:scale(.96);background:var(--work);color:#0b0d10;border-color:var(--work)}
 
-  /* ---------- pantalla de descanso ---------- */
-  .run{
-    position:fixed;inset:0;background:var(--bg);z-index:10;
-    display:flex;flex-direction:column;align-items:center;justify-content:center;
-    gap:clamp(10px,2.5vmin,24px);
-    --ring:min(70vmin,520px);
-    padding:calc(env(safe-area-inset-top) + 8px) 8px calc(env(safe-area-inset-bottom) + 8px);
-  }
-  .run[hidden]{display:none}
-  .phase{
-    font-size:clamp(13px,2.6vmin,20px);font-weight:800;letter-spacing:.2em;
-    color:var(--dim);text-transform:uppercase;text-align:center;
-  }
-  .phase b{color:var(--acc,var(--work))}
-  .ring{
-    width:var(--ring);aspect-ratio:1;border-radius:50%;
-    background:conic-gradient(var(--acc,var(--work)) calc(var(--p,1)*360deg), #202832 0);
-    display:grid;place-items:center;
-  }
-  .ring .in{
-    width:88%;height:88%;border-radius:50%;background:var(--bg);
-    display:grid;place-items:center;
-  }
-  .big{
-    font-size:calc(var(--ring) * .30);font-weight:800;letter-spacing:-.04em;line-height:1;
-    color:var(--acc,var(--work));
-  }
-  .big.go{font-size:calc(var(--ring) * .34)}
+  /* ---------- pantallas superpuestas ---------- */
+  .ov{position:fixed;inset:0;background:var(--bg);z-index:9;display:flex;flex-direction:column;gap:var(--gap)}
+  .ov[hidden]{display:none}
+  .head{display:flex;align-items:center;gap:10px;flex:0 0 auto;min-height:44px}
+  .head h1{font-size:clamp(17px,3vmin,23px);font-weight:800;flex:1;min-width:0;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .icb{width:44px;height:44px;flex:0 0 auto;border:1px solid var(--line);border-radius:12px;
+    background:var(--card);color:var(--txt);font-size:18px;line-height:1;cursor:pointer}
+  .icb:active{background:var(--card-2)}
+  .icb.del:active{background:#3a2226;border-color:#7a2d38}
+  .list{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:8px;min-height:0}
+  .row{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);
+    border-radius:14px;padding:10px 12px;min-height:60px;flex:0 0 auto}
+  .row.sel{border-color:var(--work)}
+  .row .info{flex:1;min-width:0;cursor:pointer}
+  .row .n{font-weight:800;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row .s{color:var(--dim);font-size:13px;font-weight:600;margin-top:2px}
+  .add{border:1px dashed var(--line);border-radius:14px;background:transparent;color:var(--dim);
+    padding:14px;font-size:15px;font-weight:800;cursor:pointer;flex:0 0 auto}
+  .add:active{background:var(--card)}
+  .vacio{color:var(--dim);font-size:14px;font-weight:600;text-align:center;padding:18px 8px;line-height:1.5}
+  .fld{display:flex;flex-direction:column;gap:6px;flex:0 0 auto}
+  .fld > span{font-size:11px;letter-spacing:.14em;color:var(--dim);font-weight:800}
+  input.f{width:100%;background:var(--card);border:1px solid var(--line);border-radius:12px;
+    color:var(--txt);padding:14px;font-size:17px;font-weight:700;font-family:inherit}
+  input.f:focus{outline:none;border-color:var(--work)}
+  .cta{width:100%;border:0;border-radius:14px;background:var(--work);color:#0b0d10;
+    padding:16px;font-size:17px;font-weight:800;cursor:pointer;font-family:inherit;flex:0 0 auto}
+  .cta:active{background:#9fe22f}
+  .cta.sec{background:var(--card);color:var(--txt);border:1px solid var(--line)}
+
+  /* ---------- entreno guiado ---------- */
+  .go{align-items:center;justify-content:center;text-align:center}
+  .gotop{position:absolute;top:calc(env(safe-area-inset-top) + 16px);left:0;right:0;
+    font-size:clamp(11px,2vmin,14px);letter-spacing:.16em;color:var(--dim);font-weight:800;text-transform:uppercase}
+  .gotag{font-size:clamp(13px,2.6vmin,20px);font-weight:800;letter-spacing:.2em;color:var(--work);text-transform:uppercase}
+  .goname{font-size:clamp(28px,7vmin,64px);font-weight:800;letter-spacing:-.02em;line-height:1.05;margin:6px 0 4px;
+    max-width:92vw;overflow-wrap:break-word}
+  .goreps{font-size:clamp(15px,3vmin,24px);color:var(--dim);font-weight:700}
+  .gobot{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 16px);padding:0 16px;
+    display:flex;flex-direction:column;gap:8px;align-items:center}
+  .gobot .cta{max-width:520px}
   .hint{font-size:clamp(12px,2.2vmin,17px);color:var(--dim);font-weight:600;letter-spacing:.04em}
-  .stop{
-    position:fixed;top:calc(env(safe-area-inset-top) + 10px);right:calc(env(safe-area-inset-right) + 12px);
+
+  /* ---------- descanso ---------- */
+  .run{position:fixed;inset:0;background:var(--bg);z-index:10;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:clamp(10px,2.5vmin,24px);--ring:min(70vmin,520px);
+    padding:calc(env(safe-area-inset-top) + 8px) 8px calc(env(safe-area-inset-bottom) + 8px)}
+  .run[hidden]{display:none}
+  .phase{font-size:clamp(13px,2.6vmin,20px);font-weight:800;letter-spacing:.2em;color:var(--dim);
+    text-transform:uppercase;text-align:center;padding:0 12px}
+  .phase b{color:var(--acc,var(--work))}
+  .ring{width:var(--ring);aspect-ratio:1;border-radius:50%;
+    background:conic-gradient(var(--acc,var(--work)) calc(var(--p,1)*360deg), #202832 0);
+    display:grid;place-items:center}
+  .ring .in{width:88%;height:88%;border-radius:50%;background:var(--bg);display:grid;place-items:center}
+  .big{font-size:calc(var(--ring) * .30);font-weight:800;letter-spacing:-.04em;line-height:1;color:var(--acc,var(--work))}
+  .big.go{font-size:calc(var(--ring) * .34)}
+  .stop{position:fixed;top:calc(env(safe-area-inset-top) + 10px);right:calc(env(safe-area-inset-right) + 12px);
     width:clamp(42px,6.5vmin,56px);height:clamp(42px,6.5vmin,56px);
     border:1px solid var(--line);border-radius:50%;background:var(--card);color:var(--txt);
-    font-size:clamp(18px,3vmin,24px);line-height:1;cursor:pointer;z-index:11;
-  }
+    font-size:clamp(18px,3vmin,24px);line-height:1;cursor:pointer;z-index:11}
   .stop:active{background:#3a2226;border-color:#7a2d38}
   .paused .big{opacity:.42}
 </style>
 </head>
 <body>
 
-<div id="app">
+<!-- ============ INICIO ============ -->
+<div id="app" class="pad">
   <div class="bar">
     <div class="ctrl">
       <button class="step" data-d="-1" aria-label="menos series">−</button>
       <div class="mid"><span class="lbl" id="lS">SERIES</span><span class="val off" id="vS">OFF</span></div>
       <button class="step" data-d="1" aria-label="más series">+</button>
     </div>
-    <button class="ctrl" id="snd"><span class="mid"><span class="lbl">TOCA PARA</span><span id="sndTxt">🔊 PROBAR</span></span></button>
+    <button class="ctrl" id="snd"><span class="mid"><span class="lbl">TOCA PARA</span><span class="ctxt" id="sndTxt">🔊 PROBAR</span></span></button>
   </div>
+
   <div class="grid" id="grid"></div>
+
+  <div class="bar">
+    <button class="ctrl" id="btnPerfil"><span class="mid"><span class="lbl">PERFIL</span><span class="ctxt" id="nomPerfil">Yo</span></span></button>
+    <button class="ctrl acc" id="btnEntrenar"><span class="ctxt">🏋 ENTRENAR</span></button>
+  </div>
 </div>
 
+<!-- ============ PERFILES ============ -->
+<div id="scPerf" class="ov pad" hidden>
+  <div class="head">
+    <button class="icb" data-cerrar>‹</button><h1>Perfiles</h1>
+  </div>
+  <div class="list" id="listPerf"></div>
+  <button class="add" id="addPerf">＋ Nuevo perfil</button>
+</div>
+
+<!-- ============ DÍAS ============ -->
+<div id="scDias" class="ov pad" hidden>
+  <div class="head">
+    <button class="icb" data-cerrar>‹</button><h1 id="tDias">Entrenos</h1>
+  </div>
+  <div class="list" id="listDias"></div>
+  <button class="add" id="addDia">＋ Nuevo día de entreno</button>
+</div>
+
+<!-- ============ UN DÍA ============ -->
+<div id="scDia" class="ov pad" hidden>
+  <div class="head">
+    <button class="icb" data-cerrar>‹</button><h1 id="tDia">Día</h1>
+    <button class="icb" id="renDia" aria-label="renombrar">✎</button>
+    <button class="icb del" id="delDia" aria-label="borrar">🗑</button>
+  </div>
+  <div class="list" id="listEjs"></div>
+  <button class="add" id="addEj">＋ Añadir ejercicio</button>
+  <button class="cta" id="empezarDia">▶ EMPEZAR ENTRENO</button>
+</div>
+
+<!-- ============ EDITAR EJERCICIO ============ -->
+<div id="scEj" class="ov pad" hidden>
+  <div class="head">
+    <button class="icb" data-cerrar>‹</button><h1 id="tEj">Ejercicio</h1>
+  </div>
+  <div class="list">
+    <div class="fld"><span>NOMBRE</span><input class="f" id="ejNom" type="text" placeholder="Press banca" autocomplete="off" enterkeyhint="done"></div>
+    <div class="bar" style="grid-template-columns:1fr 1fr">
+      <div class="ctrl">
+        <button class="step" data-ej="ser" data-d="-1">−</button>
+        <div class="mid"><span class="lbl">SERIES</span><span class="val" id="ejSer">4</span></div>
+        <button class="step" data-ej="ser" data-d="1">+</button>
+      </div>
+      <div class="ctrl">
+        <button class="step" data-ej="rep" data-d="-1">−</button>
+        <div class="mid"><span class="lbl">REPS</span><span class="val" id="ejRep">12</span></div>
+        <button class="step" data-ej="rep" data-d="1">+</button>
+      </div>
+    </div>
+    <div class="ctrl">
+      <button class="step" data-ej="des" data-d="-1">−</button>
+      <div class="mid"><span class="lbl">DESCANSO ENTRE SERIES</span><span class="val" id="ejDes">01:30</span></div>
+      <button class="step" data-ej="des" data-d="1">+</button>
+    </div>
+  </div>
+  <button class="cta" id="guardarEj">GUARDAR</button>
+  <button class="cta sec" id="borrarEj">Borrar ejercicio</button>
+</div>
+
+<!-- ============ ENTRENO GUIADO ============ -->
+<div id="scGo" class="ov go pad" hidden>
+  <button class="stop" id="goX" aria-label="salir">✕</button>
+  <div class="gotop" id="goTop"></div>
+  <div>
+    <div class="gotag" id="goTag"></div>
+    <div class="goname" id="goName"></div>
+    <div class="goreps" id="goReps"></div>
+  </div>
+  <div class="gobot">
+    <button class="cta" id="goBtn">INICIAR DESCANSO</button>
+    <div class="hint" id="goHint"></div>
+  </div>
+</div>
+
+<!-- ============ DESCANSO ============ -->
 <div class="run" id="run" hidden>
   <button class="stop" id="stop" aria-label="parar">✕</button>
   <div class="phase" id="phase">DESCANSO</div>
@@ -150,21 +244,45 @@
 (function(){
   'use strict';
 
-  /* ============ datos ============ */
-  // Los tiempos son DESCANSOS. La serie no se cronometra: dura lo que dure.
-  var TIMES  = [15,30,45,60,75,90,105,120,135,150,165,180];
-  var SERIES = [1,2,3,4,5,6,7,8,10,12,15,20];
-
-  var sIdx = +(localStorage.getItem('gt.s') || 0);
-  if (!(sIdx >= 0 && sIdx < SERIES.length)) sIdx = 0;
-  var serie = 1;                    // serie que toca hacer ahora
-
   var $ = function(id){ return document.getElementById(id); };
+  function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
   function fmt(s){
     s = Math.max(0, Math.ceil(s - 0.0001));
     var m = Math.floor(s/60), r = s%60;
     return (m<10?'0':'')+m+':'+(r<10?'0':'')+r;
   }
+
+  /* ============ datos ============ */
+  // Los tiempos son DESCANSOS. La serie no se cronometra: dura lo que dure.
+  var TIMES  = [15,30,45,60,75,90,105,120,135,150,165,180];
+  var SERIES = [1,2,3,4,5,6,7,8,10,12,15,20];
+
+  // Todo vive en este móvil. Sin cuentas, sin servidor, sin registro.
+  var DB = null;
+  function cargar(){
+    try { DB = JSON.parse(localStorage.getItem('gt.db')); } catch(e){ DB = null; }
+    if (!DB || !DB.perfiles || !DB.perfiles.length){
+      DB = { perfiles:[{ id:uid(), nombre:'Yo', dias:[] }], activo:null };
+      DB.activo = DB.perfiles[0].id;
+      guardar();
+    }
+    if (!perfil()) DB.activo = DB.perfiles[0].id;
+  }
+  function guardar(){ try{ localStorage.setItem('gt.db', JSON.stringify(DB)); }catch(e){} }
+  function perfil(){
+    for (var i=0;i<DB.perfiles.length;i++) if (DB.perfiles[i].id === DB.activo) return DB.perfiles[i];
+    return null;
+  }
+  function resumenDia(d){
+    if (!d.ejercicios.length) return 'sin ejercicios';
+    var n = d.ejercicios.length, s = 0;
+    for (var i=0;i<n;i++) s += d.ejercicios[i].series;
+    return n + (n===1?' ejercicio':' ejercicios') + ' · ' + s + ' series';
+  }
+
+  var sIdx = +(localStorage.getItem('gt.s') || 0);
+  if (!(sIdx >= 0 && sIdx < SERIES.length)) sIdx = 0;
+  var serie = 1;                    // serie que toca en el panel rápido
 
   /* ============ audio ============ */
   /* Los avisos se programan por adelantado en el Web Audio API: suenan a su
@@ -178,17 +296,14 @@
       // iOS 16.4+: 'playback' hace que suene aunque el móvil esté en silencio
       try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch(e){}
       ctx = new AC();
-      master = ctx.createGain();
-      master.gain.value = 1;
+      master = ctx.createGain(); master.gain.value = 1;
       var comp = ctx.createDynamicsCompressor();   // más volumen percibido
       master.connect(comp); comp.connect(ctx.destination);
     }
     if (ctx.state === 'suspended') ctx.resume();
     return ctx;
   }
-
-  // Un bucle mudo mantiene viva la sesión de audio de iOS mientras corre la
-  // cuenta atrás, para que los avisos programados no se queden por el camino.
+  // Un bucle mudo mantiene viva la sesión de audio de iOS durante la cuenta atrás.
   function keepAudioAlive(on){
     if (!ctx) return;
     if (on && !alive){
@@ -201,11 +316,10 @@
       alive = null;
     }
   }
-
   function beep(at, dur, freq, vol){
     var o = ctx.createOscillator(), g = ctx.createGain();
     o.type = 'square';
-    o.frequency.value = freq;   // valor directo: no depende de la línea temporal del parámetro
+    o.frequency.value = freq;
     g.gain.setValueAtTime(0.0001, at);
     g.gain.exponentialRampToValueAtTime(vol, at + 0.012);
     g.gain.setValueAtTime(vol, at + dur - 0.05);
@@ -219,27 +333,21 @@
     nodes = [];
   }
 
-  var AVISO_30 = 30;      // aviso a falta de 30 s
-  var TICKS    = 5;       // tic-tic-tic-tic-tic en los últimos 5 s
-  var GO_DUR   = 2.4;     // pitido largo de "ya, a entrenar"
-
-  // Programa todos los avisos de un descanso de `secs` segundos.
+  var AVISO_30 = 30, TICKS = 5, GO_DUR = 2.4;
   function programarAvisos(secs){
     if (!audio()) return;
     var fin = ctx.currentTime + secs;
-    if (secs > AVISO_30 + 2){                       // aviso de media: dos pitidos
+    if (secs > AVISO_30 + 2){                       // aviso de media
       beep(fin - AVISO_30,        .13, 520, .55);
       beep(fin - AVISO_30 + 0.22, .13, 520, .55);
     }
-    for (var i = TICKS; i >= 1; i--){               // cuenta atrás
+    for (var i = TICKS; i >= 1; i--){               // tic tic tic tic tic
       if (secs > i + 0.3) beep(fin - i, .10, 700, .75);
     }
     beep(fin, GO_DUR, 1100, .95);                   // ¡YA!
   }
-
   function probarSonido(){
-    var c = audio();
-    var b = $('snd'), t = $('sndTxt');
+    var c = audio(), b = $('snd'), t = $('sndTxt');
     if (!c){ b.className = 'ctrl ko'; t.textContent = '✕ SIN AUDIO'; return; }
     silence();
     beep(c.currentTime + 0.02, .10, 700, .75);
@@ -251,7 +359,6 @@
       t.textContent = ok ? '🔊 ¿SE OYE?' : '✕ BLOQUEADO';
     }, 250);
   }
-
   function buzz(ms){ try{ navigator.vibrate && navigator.vibrate(ms); }catch(e){} }
 
   /* ============ pantalla encendida ============ */
@@ -259,57 +366,44 @@
   function keepAwake(on){
     if (on){
       if (navigator.wakeLock && !wl) navigator.wakeLock.request('screen').then(function(l){ wl = l; }).catch(function(){});
-    } else if (wl){
-      try{ wl.release(); }catch(e){}
-      wl = null;
-    }
+    } else if (wl){ try{ wl.release(); }catch(e){} wl = null; }
   }
 
-  /* ============ descanso ============ */
-  var run = null;   // {dur, endAt, paused, left, ended, go}
-  var to = null, raf = null, acc = '';
+  /* ============ el descanso ============ */
+  var run = null, to = null, raf = null, acc = '';
   var elRun = $('run'), elBig = $('big'), elRing = $('ring'), elPhase = $('phase'), elHint = $('hint');
 
-  function empezarDescanso(secs){
-    audio();                        // este toque desbloquea el sonido
-    keepAudioAlive(true);
-    run = { dur:secs, endAt:performance.now() + secs*1000, paused:false, left:0, ended:false, go:false };
+  // secs: duración · etiqueta: texto de cabecera · alFinal: qué hacer al acabar
+  function empezarDescanso(secs, etiqueta, alFinal){
+    audio(); keepAudioAlive(true);
+    run = { dur:secs, endAt:performance.now() + secs*1000, paused:false, left:0,
+            ended:false, go:false, etiqueta:etiqueta||'DESCANSO', alFinal:alFinal||null };
     elRun.hidden = false;
     elRun.classList.remove('paused');
     elBig.classList.remove('go');
     keepAwake(true);
-    silence();
-    programarAvisos(secs);
+    silence(); programarAvisos(secs);
     clearTimeout(to); to = setTimeout(finDescanso, secs*1000);
-    setAcc('var(--work)');
-    pintar(true);
+    setAcc('var(--work)'); pintar(true);
     cancelAnimationFrame(raf); raf = requestAnimationFrame(bucle);
   }
-
   function finDescanso(){
     if (!run || run.ended) return;
     run.ended = true; run.go = true;
     clearTimeout(to);
     buzz([200,90,200]);
-    setAcc('var(--work)');
-    pintar(true);
-    // el pitido largo suena solo y el temporizador se para solo:
+    setAcc('var(--work)'); pintar(true);
+    // el pitido largo suena solo y el temporizador se cierra solo:
     // te quedas listo para la siguiente serie sin tocar la pantalla.
-    to = setTimeout(function(){
-      if (serie < SERIES[sIdx]) serie++;
-      else serie = 1;
-      parar();
-    }, GO_DUR*1000 + 200);
+    var cb = run.alFinal;
+    to = setTimeout(function(){ cerrarDescanso(); if (cb) cb(); }, GO_DUR*1000 + 200);
   }
-
   function setAcc(c){ if (c !== acc){ acc = c; elRun.style.setProperty('--acc', c); } }
-
   function pintar(forzar){
     if (!run) return;
     if (run.go){
       elPhase.textContent = 'A ENTRENAR';
-      elBig.textContent = '¡YA!';
-      elBig.classList.add('go');
+      elBig.textContent = '¡YA!'; elBig.classList.add('go');
       elRing.style.setProperty('--p', 1);
       elHint.textContent = 'Se para solo';
       return;
@@ -319,14 +413,9 @@
     elBig.textContent = fmt(left/1000);
     elRing.style.setProperty('--p', run.dur ? (left/1000)/run.dur : 0);
     setAcc(left <= TICKS*1000 ? 'var(--warn)' : 'var(--work)');
-    if (forzar){
-      elPhase.innerHTML = SERIES[sIdx] > 1
-        ? 'DESCANSO · SERIE <b>' + serie + '</b> / ' + SERIES[sIdx]
-        : 'DESCANSO';
-    }
+    if (forzar) elPhase.innerHTML = run.etiqueta;
     elHint.textContent = run.paused ? 'PAUSA · toca para seguir' : 'Toca para pausar';
   }
-
   function bucle(){
     if (!run) return;
     if (!run.paused && !run.go){
@@ -335,7 +424,6 @@
     }
     raf = requestAnimationFrame(bucle);
   }
-
   function pausa(){
     if (!run || run.go) return;
     if (run.paused){
@@ -354,28 +442,48 @@
     }
     pintar(true);
   }
-
-  function parar(){
+  function cerrarDescanso(){
     silence(); clearTimeout(to); cancelAnimationFrame(raf);
     keepAudioAlive(false);
     run = null; raf = null;
-    elRun.hidden = true;
-    elRun.classList.remove('paused');
+    elRun.hidden = true; elRun.classList.remove('paused');
     keepAwake(false);
-    pintarAjustes();
   }
+  // ✕ : corta el descanso sin dar la serie por hecha
+  function cortarDescanso(){ cerrarDescanso(); pintarInicio(); }
 
-  /* ============ interfaz ============ */
+  /* ============ navegación ============ */
+  var PANTALLAS = ['scPerf','scDias','scDia','scEj','scGo'];
+  function ir(id){
+    PANTALLAS.forEach(function(p){ $(p).hidden = (p !== id); });
+    $('app').style.display = id ? 'none' : '';
+  }
+  function inicio(){ ir(null); pintarInicio(); }
+  document.querySelectorAll('[data-cerrar]').forEach(function(b){
+    b.addEventListener('click', function(){
+      var ov = b.closest('.ov').id;
+      if (ov === 'scEj') { ir('scDia'); pintarDia(); }
+      else if (ov === 'scDia') { ir('scDias'); pintarDias(); }
+      else inicio();
+    });
+  });
+
+  /* ============ inicio ============ */
   var grid = $('grid');
   TIMES.forEach(function(s){
     var b = document.createElement('button');
-    b.className = 't';
-    b.textContent = fmt(s);
-    b.addEventListener('click', function(){ empezarDescanso(s); });
+    b.className = 't'; b.textContent = fmt(s);
+    b.addEventListener('click', function(){
+      var et = SERIES[sIdx] > 1 ? 'DESCANSO · SERIE <b>'+serie+'</b> / '+SERIES[sIdx] : 'DESCANSO';
+      empezarDescanso(s, et, function(){
+        if (serie < SERIES[sIdx]) serie++; else serie = 1;
+        pintarInicio();
+      });
+    });
     grid.appendChild(b);
   });
 
-  function pintarAjustes(){
+  function pintarInicio(){
     var n = SERIES[sIdx];
     if (n > 1){
       $('lS').textContent = 'SERIE';
@@ -386,24 +494,278 @@
       $('vS').textContent = 'OFF';
       $('vS').className = 'val off';
     }
+    $('nomPerfil').textContent = perfil().nombre;
     localStorage.setItem('gt.s', sIdx);
   }
 
-  document.querySelectorAll('.step').forEach(function(b){
+  document.querySelectorAll('.bar .step[data-d]').forEach(function(b){
+    if (b.dataset.ej) return;
     b.addEventListener('click', function(){
       sIdx = Math.min(SERIES.length-1, Math.max(0, sIdx + (+b.dataset.d)));
-      serie = 1;
-      pintarAjustes();
-      buzz(8);
+      serie = 1; pintarInicio(); buzz(8);
     });
   });
-  pintarAjustes();
 
+  /* ============ perfiles ============ */
+  function pintarPerfiles(){
+    var l = $('listPerf'); l.innerHTML = '';
+    DB.perfiles.forEach(function(p){
+      var r = document.createElement('div');
+      r.className = 'row' + (p.id === DB.activo ? ' sel' : '');
+      var i = document.createElement('div');
+      i.className = 'info';
+      i.innerHTML = '<div class="n">' + esc(p.nombre) + '</div><div class="s">' +
+                    p.dias.length + (p.dias.length===1?' día':' días') + '</div>';
+      i.addEventListener('click', function(){ DB.activo = p.id; guardar(); inicio(); });
+      r.appendChild(i);
+      r.appendChild(icono('✎', function(){
+        pedirTexto('Nombre del perfil', p.nombre, function(v){ p.nombre = v; guardar(); pintarPerfiles(); });
+      }));
+      if (DB.perfiles.length > 1){
+        r.appendChild(icono('🗑', function(){
+          if (!confirm('¿Borrar el perfil "' + p.nombre + '" y todos sus entrenos?')) return;
+          DB.perfiles = DB.perfiles.filter(function(x){ return x.id !== p.id; });
+          if (DB.activo === p.id) DB.activo = DB.perfiles[0].id;
+          guardar(); pintarPerfiles();
+        }, true));
+      }
+      l.appendChild(r);
+    });
+  }
+  $('addPerf').addEventListener('click', function(){
+    pedirTexto('Nombre del nuevo perfil', '', function(v){
+      var p = { id:uid(), nombre:v, dias:[] };
+      DB.perfiles.push(p); DB.activo = p.id; guardar(); pintarPerfiles();
+    });
+  });
+  $('btnPerfil').addEventListener('click', function(){ ir('scPerf'); pintarPerfiles(); });
+
+  /* ============ días ============ */
+  function pintarDias(){
+    $('tDias').textContent = 'Entrenos de ' + perfil().nombre;
+    var l = $('listDias'); l.innerHTML = '';
+    var dias = perfil().dias;
+    if (!dias.length){
+      l.innerHTML = '<div class="vacio">Todavía no tienes días de entreno.<br>Crea uno y añádele ejercicios.</div>';
+    }
+    dias.forEach(function(d){
+      var r = document.createElement('div'); r.className = 'row';
+      var i = document.createElement('div'); i.className = 'info';
+      i.innerHTML = '<div class="n">' + esc(d.nombre) + '</div><div class="s">' + resumenDia(d) + '</div>';
+      i.addEventListener('click', function(){ diaAbierto = d.id; ir('scDia'); pintarDia(); });
+      r.appendChild(i);
+      if (d.ejercicios.length){
+        r.appendChild(icono('▶', function(){ diaAbierto = d.id; empezarEntreno(); }));
+      }
+      l.appendChild(r);
+    });
+  }
+  $('addDia').addEventListener('click', function(){
+    var n = perfil().dias.length + 1;
+    pedirTexto('Nombre del día', 'Día ' + n, function(v){
+      var d = { id:uid(), nombre:v, ejercicios:[] };
+      perfil().dias.push(d); guardar();
+      diaAbierto = d.id; ir('scDia'); pintarDia();
+    });
+  });
+  $('btnEntrenar').addEventListener('click', function(){ ir('scDias'); pintarDias(); });
+
+  /* ============ un día ============ */
+  var diaAbierto = null, ejAbierto = null, ejBorrador = null;
+  function dia(){
+    var ds = perfil().dias;
+    for (var i=0;i<ds.length;i++) if (ds[i].id === diaAbierto) return ds[i];
+    return null;
+  }
+  function pintarDia(){
+    var d = dia(); if (!d){ ir('scDias'); pintarDias(); return; }
+    $('tDia').textContent = d.nombre;
+    var l = $('listEjs'); l.innerHTML = '';
+    if (!d.ejercicios.length){
+      l.innerHTML = '<div class="vacio">Este día no tiene ejercicios.<br>Añade el primero abajo.</div>';
+    }
+    d.ejercicios.forEach(function(e, idx){
+      var r = document.createElement('div'); r.className = 'row';
+      var i = document.createElement('div'); i.className = 'info';
+      i.innerHTML = '<div class="n">' + (idx+1) + '. ' + esc(e.nombre) + '</div><div class="s">' +
+                    e.series + ' × ' + e.reps + ' reps · descanso ' + fmt(e.descanso) + '</div>';
+      i.addEventListener('click', function(){ abrirEjercicio(e.id); });
+      r.appendChild(i);
+      r.appendChild(icono('↑', function(){ mover(d.ejercicios, idx, -1); guardar(); pintarDia(); }));
+      r.appendChild(icono('↓', function(){ mover(d.ejercicios, idx,  1); guardar(); pintarDia(); }));
+      l.appendChild(r);
+    });
+    $('empezarDia').style.display = d.ejercicios.length ? '' : 'none';
+  }
+  function mover(a, i, d){
+    var j = i + d; if (j < 0 || j >= a.length) return;
+    var t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  $('renDia').addEventListener('click', function(){
+    var d = dia(); if (!d) return;
+    pedirTexto('Nombre del día', d.nombre, function(v){ d.nombre = v; guardar(); pintarDia(); });
+  });
+  $('delDia').addEventListener('click', function(){
+    var d = dia(); if (!d) return;
+    if (!confirm('¿Borrar el día "' + d.nombre + '"?')) return;
+    perfil().dias = perfil().dias.filter(function(x){ return x.id !== d.id; });
+    guardar(); ir('scDias'); pintarDias();
+  });
+  $('addEj').addEventListener('click', function(){ abrirEjercicio(null); });
+  $('empezarDia').addEventListener('click', empezarEntreno);
+
+  /* ============ editar ejercicio ============ */
+  function abrirEjercicio(id){
+    var d = dia(); if (!d) return;
+    ejAbierto = id;
+    var e = null;
+    for (var i=0;i<d.ejercicios.length;i++) if (d.ejercicios[i].id === id) e = d.ejercicios[i];
+    ejBorrador = e ? { nombre:e.nombre, series:e.series, reps:e.reps, descanso:e.descanso }
+                   : { nombre:'', series:4, reps:12, descanso:90 };
+    $('tEj').textContent = e ? 'Editar ejercicio' : 'Nuevo ejercicio';
+    $('ejNom').value = ejBorrador.nombre;
+    $('borrarEj').style.display = e ? '' : 'none';
+    pintarEj(); ir('scEj');
+  }
+  function pintarEj(){
+    $('ejSer').textContent = ejBorrador.series;
+    $('ejRep').textContent = ejBorrador.reps;
+    $('ejDes').textContent = fmt(ejBorrador.descanso);
+  }
+  document.querySelectorAll('.step[data-ej]').forEach(function(b){
+    b.addEventListener('click', function(){
+      var d = +b.dataset.d;
+      if (b.dataset.ej === 'ser') ejBorrador.series = Math.min(20, Math.max(1, ejBorrador.series + d));
+      else if (b.dataset.ej === 'rep') ejBorrador.reps = Math.min(100, Math.max(1, ejBorrador.reps + d));
+      else {
+        var i = TIMES.indexOf(ejBorrador.descanso);
+        if (i < 0) i = TIMES.indexOf(90);
+        ejBorrador.descanso = TIMES[Math.min(TIMES.length-1, Math.max(0, i + d))];
+      }
+      pintarEj(); buzz(8);
+    });
+  });
+  $('guardarEj').addEventListener('click', function(){
+    var d = dia(); if (!d) return;
+    ejBorrador.nombre = ($('ejNom').value || '').trim() || 'Ejercicio ' + (d.ejercicios.length + 1);
+    if (ejAbierto){
+      for (var i=0;i<d.ejercicios.length;i++) if (d.ejercicios[i].id === ejAbierto){
+        d.ejercicios[i].nombre = ejBorrador.nombre;
+        d.ejercicios[i].series = ejBorrador.series;
+        d.ejercicios[i].reps = ejBorrador.reps;
+        d.ejercicios[i].descanso = ejBorrador.descanso;
+      }
+    } else {
+      d.ejercicios.push({ id:uid(), nombre:ejBorrador.nombre, series:ejBorrador.series,
+                          reps:ejBorrador.reps, descanso:ejBorrador.descanso });
+    }
+    guardar(); ir('scDia'); pintarDia();
+  });
+  $('borrarEj').addEventListener('click', function(){
+    var d = dia(); if (!d || !ejAbierto) return;
+    d.ejercicios = d.ejercicios.filter(function(x){ return x.id !== ejAbierto; });
+    guardar(); ir('scDia'); pintarDia();
+  });
+
+  /* ============ entreno guiado ============ */
+  // fase 'hacer'    -> estás haciendo la serie, el botón inicia el descanso
+  // fase 'siguiente'-> prepara el material del siguiente ejercicio y toca
+  // fase 'fin'      -> entreno terminado
+  var W = null;
+  function empezarEntreno(){
+    var d = dia(); if (!d || !d.ejercicios.length) return;
+    W = { iEj:0, serie:1, fase:'hacer' };
+    ir('scGo'); pintarGo(); keepAwake(true);
+  }
+  function ejActual(){ return dia().ejercicios[W.iEj]; }
+  function pintarGo(){
+    var d = dia(); if (!d || !W) return;
+    var n = d.ejercicios.length;
+    $('goTop').textContent = d.nombre + ' · ejercicio ' + Math.min(W.iEj+1, n) + '/' + n;
+    if (W.fase === 'fin'){
+      $('goTag').textContent = '';
+      $('goName').textContent = '¡Entreno completo!';
+      $('goReps').textContent = d.nombre;
+      $('goBtn').textContent = 'TERMINAR';
+      $('goHint').textContent = '';
+      return;
+    }
+    var e = ejActual();
+    if (W.fase === 'siguiente'){
+      $('goTag').textContent = 'SIGUIENTE EJERCICIO';
+      $('goName').textContent = e.nombre;
+      $('goReps').textContent = e.series + ' × ' + e.reps + ' reps · descanso ' + fmt(e.descanso);
+      $('goBtn').textContent = '▶ EMPEZAR ESTE EJERCICIO';
+      $('goHint').textContent = 'Toca cuando tengas las pesas y el material listos';
+      return;
+    }
+    $('goTag').textContent = 'SERIE ' + W.serie + ' / ' + e.series;
+    $('goName').textContent = e.nombre;
+    $('goReps').textContent = e.reps + ' repeticiones';
+    $('goBtn').textContent = 'INICIAR DESCANSO · ' + fmt(e.descanso);
+    $('goHint').textContent = 'Dale al acabar la serie';
+  }
+  $('goBtn').addEventListener('click', function(){
+    if (!W) return;
+    if (W.fase === 'fin'){ W = null; keepAwake(false); inicio(); return; }
+    if (W.fase === 'siguiente'){ W.fase = 'hacer'; W.serie = 1; pintarGo(); return; }
+    var d = dia(), e = ejActual();
+    var ultima = W.serie >= e.series;
+    var et = 'DESCANSO · ' + esc(e.nombre) + ' · SERIE <b>' + W.serie + '</b> / ' + e.series;
+    empezarDescanso(e.descanso, et, function(){
+      if (!W) return;
+      if (!ultima){ W.serie++; }
+      else if (W.iEj < d.ejercicios.length - 1){ W.iEj++; W.fase = 'siguiente'; }
+      else { W.fase = 'fin'; }
+      pintarGo();
+    });
+  });
+  $('goX').addEventListener('click', function(){ W = null; keepAwake(false); inicio(); });
+
+  /* ============ utilidades de interfaz ============ */
+  function esc(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
+    });
+  }
+  function icono(txt, fn, rojo){
+    var b = document.createElement('button');
+    b.className = 'icb' + (rojo ? ' del' : '');
+    b.textContent = txt;
+    b.addEventListener('click', function(e){ e.stopPropagation(); fn(); });
+    return b;
+  }
+  // pedir un texto sin depender de prompt(), que en modo app se comporta raro
+  function pedirTexto(titulo, valor, fn){
+    var ov = document.createElement('div');
+    ov.className = 'ov pad';
+    ov.style.zIndex = 12;
+    ov.innerHTML = '<div class="head"><h1></h1></div>' +
+                   '<div class="list"><div class="fld"><input class="f" type="text" autocomplete="off" enterkeyhint="done"></div></div>' +
+                   '<button class="cta">GUARDAR</button><button class="cta sec">Cancelar</button>';
+    ov.querySelector('h1').textContent = titulo;
+    var inp = ov.querySelector('input');
+    inp.value = valor || '';
+    function ok(){
+      var v = (inp.value || '').trim();
+      document.body.removeChild(ov);
+      if (v) fn(v);
+    }
+    ov.querySelectorAll('.cta')[0].addEventListener('click', ok);
+    ov.querySelectorAll('.cta')[1].addEventListener('click', function(){ document.body.removeChild(ov); });
+    inp.addEventListener('keydown', function(e){ if (e.key === 'Enter') ok(); });
+    document.body.appendChild(ov);
+    setTimeout(function(){ inp.focus(); inp.select(); }, 50);
+  }
+
+  /* ============ arranque ============ */
+  cargar();
   $('snd').addEventListener('click', probarSonido);
   elRun.addEventListener('click', pausa);
-  $('stop').addEventListener('click', function(e){ e.stopPropagation(); parar(); });
+  $('stop').addEventListener('click', function(e){ e.stopPropagation(); cortarDescanso(); });
   document.addEventListener('keydown', function(e){
-    if (e.code === 'Escape' && run) parar();
+    if (e.target && e.target.tagName === 'INPUT') return;
+    if (e.code === 'Escape' && run) cortarDescanso();
     else if (e.code === 'Space' && run){ e.preventDefault(); pausa(); }
   });
   document.addEventListener('visibilitychange', function(){
@@ -412,11 +774,11 @@
       if (performance.now() >= run.endAt) finDescanso();
     }
   });
-  // desbloquea el audio en cuanto toques cualquier cosa
   document.addEventListener('pointerdown', function armar(){
     audio();
     if (ctx && ctx.state === 'running') document.removeEventListener('pointerdown', armar);
   });
+  pintarInicio();
 
   if ('serviceWorker' in navigator){
     window.addEventListener('load', function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });
