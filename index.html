@@ -250,7 +250,7 @@
     El descanso vale en segundos (<code>90</code>) o en min:seg (<code>1:30</code>). Si lo omites, 1:30.
   </div>
   <div class="bar">
-    <button class="add" id="impEj">Rellenar con un ejemplo</button>
+    <button class="add" id="impEj">Rellenar con mi plan</button>
     <button class="add" id="impExp">Volcar lo que ya tengo</button>
   </div>
   <textarea class="ta" id="impTxt" spellcheck="false" autocapitalize="off" autocorrect="off" placeholder="# PUSH - (Pecho · Hombros · Tríceps)&#10;Press banca 4x10 1:30&#10;Press militar 4x10 1:30"></textarea>
@@ -886,22 +886,31 @@
   $('impEj').addEventListener('click', function(){ $('impTxt').value = EJEMPLO; });
 
   var EJEMPLO = [
-    '# PUSH - (Pecho · Hombros · Tríceps)',
+    '# PUSH - Pecho · Hombros · Tríceps - en casa',
     'Press banca mancuernas 4x5-7 2:00',
     'Press inclinado 30° 4x8-10 1:30',
     'Superserie hombro (reverse fly + laterales + frontales) 3x12-15 1:30',
     'Fondos en paralelas 4x5-7 1:30',
     'Extensión tríceps unilateral 3x10-12 1:00',
     '',
-    '# LEGS - (Piernas · Glúteo · Core)',
+    '# LEGS - Piernas · Glúteo · Core - en casa',
     'Sentadillas goblet 4x12-15 1:30',
     'Peso muerto rumano 4x12-15 1:15',
     'Zancadas caminando 2x6-8 1:00',
     'Hip thrust suelo 3x12-15 1:00',
-    'Gemelos 3x15-20 0:45',
-    'Core circuito (crunch, elevación piernas, tijeras, plancha) 2x1 2:00',
+    'Gemelos una pierna 3x15-20 0:45',
+    'Core circuito (crunch, elevación, tijeras, plancha) 2x1 2:00',
     '',
-    '# PULL - (Espalda · Bíceps)',
+    '# LEGS - Piernas · Glúteo · Core - gym',
+    'Prensa inclinada 4x12-15 1:30',
+    'Sentadilla en máquina 4x10-12 1:30',
+    'Hip thrust con cinturón 4x12-15 1:15',
+    'Extensión de cuádriceps 4x12-15 1:00',
+    'Curl femoral tumbado 4x12-15 1:00',
+    'Elevación de talones 4x15-20 0:45',
+    'Core circuito (crunch, elevación, tijeras, plancha) 2x1 2:00',
+    '',
+    '# PULL - Espalda · Bíceps - en casa',
     'Dominadas pronas 5x8-10 2:00',
     'Remo Gironda mancuernas 4x10-12 1:15',
     'Remo unilateral mancuerna 3x8-10 1:00',
