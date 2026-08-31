@@ -37,8 +37,33 @@ serie. Cuando terminas todas las series de un ejercicio, corre el último
 descanso y luego esperas a tener el material del siguiente listo para tocar y
 seguir.
 
-Los perfiles son **locales de este móvil**: no hay cuentas ni servidor. Todo se
-guarda en el navegador.
+## Copia en la nube (opcional)
+
+Por defecto todo vive en el móvil y no hace falta ninguna cuenta. Si quieres
+que tu plan te siga a otros dispositivos y sobreviva a un borrado de datos del
+navegador, en **Perfil → ☁️ Copia en la nube → ENTRAR** puedes identificarte con
+Google. A partir de ahí cada cambio sube a Firestore (`usuarios/{uid}`) y baja
+lo que hayas tocado en otro sitio; en un conflicto gana la versión con la marca
+de tiempo más reciente.
+
+El SDK de Firebase se carga con `import()` dinámico y solo si activas la nube,
+así que sin cuenta y sin conexión la app funciona exactamente igual de rápido.
+
+Proyecto: `gym-timer-b1db0`. Las claves del cliente están en el HTML porque son
+públicas por diseño; lo que protege los datos son las reglas de Firestore:
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /usuarios/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+  }
+}
+```
+
+Cada persona solo puede leer y escribir su propio documento, y solo autenticada.
 
 ## Más detalles
 
