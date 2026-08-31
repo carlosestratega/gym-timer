@@ -69,6 +69,7 @@
     transition:transform .06s ease, background .12s ease;
   }
   .t:active{transform:scale(.96);background:var(--work);color:#0b0d10;border-color:var(--work)}
+  .t.sel{border-color:var(--work);color:var(--work)}
 
   /* ---------- pantallas superpuestas ---------- */
   .ov{position:fixed;inset:0;background:var(--bg);z-index:9;display:flex;flex-direction:column;gap:var(--gap)}
@@ -100,6 +101,24 @@
     padding:16px;font-size:17px;font-weight:800;cursor:pointer;font-family:inherit;flex:0 0 auto}
   .cta:active{background:#9fe22f}
   .cta.sec{background:var(--card);color:var(--txt);border:1px solid var(--line)}
+  /* barra de abajo: perfil + entrenar + el botón grande de descanso */
+  .bar.bot{grid-template-columns:1fr 1fr}
+  .bar.bot .cta2{grid-column:1 / -1;background:var(--work);border-color:var(--work);color:#0b0d10}
+  .bar.bot .cta2:active{background:#9fe22f}
+  .cta2 .lbl{color:rgba(11,13,16,.6)}
+  @media (orientation:landscape){
+    .bar.bot{grid-template-columns:1fr 1fr 2fr}
+    .bar.bot .cta2{grid-column:auto}
+  }
+  textarea.ta{
+    flex:1 1 auto;min-height:120px;resize:none;width:100%;
+    background:var(--card);border:1px solid var(--line);border-radius:12px;color:var(--txt);
+    padding:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:14px;font-weight:600;line-height:1.55
+  }
+  textarea.ta:focus{outline:none;border-color:var(--work)}
+  .ayuda{color:var(--dim);font-size:13px;font-weight:600;line-height:1.6;flex:0 0 auto}
+  .ayuda code{color:var(--txt);background:var(--card);padding:2px 6px;border-radius:6px;font-size:12px}
 
   /* ---------- entreno guiado ---------- */
   .go{align-items:center;justify-content:center;text-align:center}
@@ -152,9 +171,10 @@
 
   <div class="grid" id="grid"></div>
 
-  <div class="bar">
+  <div class="bar bot">
     <button class="ctrl" id="btnPerfil"><span class="mid"><span class="lbl">PERFIL</span><span class="ctxt" id="nomPerfil">Yo</span></span></button>
-    <button class="ctrl acc" id="btnEntrenar"><span class="ctxt">🏋 ENTRENAR</span></button>
+    <button class="ctrl" id="btnEntrenar"><span class="mid"><span class="lbl">PLAN</span><span class="ctxt">🏋 ENTRENAR</span></span></button>
+    <button class="ctrl cta2" id="btnDescanso"><span class="mid"><span class="lbl" id="ctaSub">DESCANSO</span><span class="ctxt" id="ctaTxt">INICIAR · 01:30</span></span></button>
   </div>
 </div>
 
@@ -171,6 +191,7 @@
 <div id="scDias" class="ov pad" hidden>
   <div class="head">
     <button class="icb" data-cerrar>‹</button><h1 id="tDias">Entrenos</h1>
+    <button class="icb" id="abrirImp" aria-label="importar">📋</button>
   </div>
   <div class="list" id="listDias"></div>
   <button class="add" id="addDia">＋ Nuevo día de entreno</button>
@@ -194,18 +215,12 @@
     <button class="icb" data-cerrar>‹</button><h1 id="tEj">Ejercicio</h1>
   </div>
   <div class="list">
-    <div class="fld"><span>NOMBRE</span><input class="f" id="ejNom" type="text" placeholder="Press banca" autocomplete="off" enterkeyhint="done"></div>
-    <div class="bar" style="grid-template-columns:1fr 1fr">
-      <div class="ctrl">
-        <button class="step" data-ej="ser" data-d="-1">−</button>
-        <div class="mid"><span class="lbl">SERIES</span><span class="val" id="ejSer">4</span></div>
-        <button class="step" data-ej="ser" data-d="1">+</button>
-      </div>
-      <div class="ctrl">
-        <button class="step" data-ej="rep" data-d="-1">−</button>
-        <div class="mid"><span class="lbl">REPS</span><span class="val" id="ejRep">12</span></div>
-        <button class="step" data-ej="rep" data-d="1">+</button>
-      </div>
+    <div class="fld"><span>NOMBRE</span><input class="f" id="ejNom" type="text" placeholder="Press banca mancuernas" autocomplete="off" enterkeyhint="done"></div>
+    <div class="fld"><span>REPETICIONES</span><input class="f" id="ejRep" type="text" placeholder="8-10" autocomplete="off" enterkeyhint="done"></div>
+    <div class="ctrl">
+      <button class="step" data-ej="ser" data-d="-1">−</button>
+      <div class="mid"><span class="lbl">SERIES</span><span class="val" id="ejSer">4</span></div>
+      <button class="step" data-ej="ser" data-d="1">+</button>
     </div>
     <div class="ctrl">
       <button class="step" data-ej="des" data-d="-1">−</button>
@@ -215,6 +230,25 @@
   </div>
   <button class="cta" id="guardarEj">GUARDAR</button>
   <button class="cta sec" id="borrarEj">Borrar ejercicio</button>
+</div>
+
+<!-- ============ IMPORTAR / EXPORTAR ============ -->
+<div id="scImp" class="ov pad" hidden>
+  <div class="head">
+    <button class="icb" data-cerrar>‹</button><h1>Importar plan</h1>
+  </div>
+  <div class="ayuda">
+    Un día por línea que empiece por <code>#</code>. Debajo, un ejercicio por línea:<br>
+    <code>Press banca 4x10 1:30</code> → nombre, series×reps y descanso.<br>
+    El descanso vale en segundos (<code>90</code>) o en min:seg (<code>1:30</code>). Si lo omites, 1:30.
+  </div>
+  <div class="bar">
+    <button class="add" id="impEj">Rellenar con un ejemplo</button>
+    <button class="add" id="impExp">Volcar lo que ya tengo</button>
+  </div>
+  <textarea class="ta" id="impTxt" spellcheck="false" autocapitalize="off" autocorrect="off" placeholder="# PUSH - (Pecho · Hombros · Tríceps)&#10;Press banca 4x10 1:30&#10;Press militar 4x10 1:30"></textarea>
+  <button class="cta" id="impAdd">IMPORTAR Y AÑADIR</button>
+  <button class="cta sec" id="impRep">Reemplazar todos mis días</button>
 </div>
 
 <!-- ============ ENTRENO GUIADO ============ -->
@@ -283,6 +317,8 @@
   var sIdx = +(localStorage.getItem('gt.s') || 0);
   if (!(sIdx >= 0 && sIdx < SERIES.length)) sIdx = 0;
   var serie = 1;                    // serie que toca en el panel rápido
+  var elegido = +(localStorage.getItem('gt.d') || 90);   // descanso elegido
+  if (TIMES.indexOf(elegido) < 0) elegido = 90;
 
   /* ============ audio ============ */
   /* Los avisos se programan por adelantado en el Web Audio API: suenan a su
@@ -453,7 +489,7 @@
   function cortarDescanso(){ cerrarDescanso(); pintarInicio(); }
 
   /* ============ navegación ============ */
-  var PANTALLAS = ['scPerf','scDias','scDia','scEj','scGo'];
+  var PANTALLAS = ['scPerf','scDias','scDia','scEj','scGo','scImp'];
   function ir(id){
     PANTALLAS.forEach(function(p){ $(p).hidden = (p !== id); });
     $('app').style.display = id ? 'none' : '';
@@ -463,6 +499,7 @@
     b.addEventListener('click', function(){
       var ov = b.closest('.ov').id;
       if (ov === 'scEj') { ir('scDia'); pintarDia(); }
+      else if (ov === 'scImp') { ir('scDias'); pintarDias(); }
       else if (ov === 'scDia') { ir('scDias'); pintarDias(); }
       else inicio();
     });
@@ -473,29 +510,33 @@
   TIMES.forEach(function(s){
     var b = document.createElement('button');
     b.className = 't'; b.textContent = fmt(s);
-    b.addEventListener('click', function(){
-      var et = SERIES[sIdx] > 1 ? 'DESCANSO · SERIE <b>'+serie+'</b> / '+SERIES[sIdx] : 'DESCANSO';
-      empezarDescanso(s, et, function(){
-        if (serie < SERIES[sIdx]) serie++; else serie = 1;
-        pintarInicio();
-      });
-    });
+    b.dataset.s = s;
+    b.addEventListener('click', function(){ elegido = s; pintarInicio(); descansoRapido(); });
     grid.appendChild(b);
   });
 
+  // el mismo descanso, tantas veces como series hagas
+  function descansoRapido(){
+    var et = SERIES[sIdx] > 1 ? 'DESCANSO · SERIE <b>'+serie+'</b> / '+SERIES[sIdx] : 'DESCANSO';
+    empezarDescanso(elegido, et, function(){
+      if (serie < SERIES[sIdx]) serie++; else serie = 1;
+      pintarInicio();
+    });
+  }
+  $('btnDescanso').addEventListener('click', descansoRapido);
+
   function pintarInicio(){
     var n = SERIES[sIdx];
-    if (n > 1){
-      $('lS').textContent = 'SERIE';
-      $('vS').textContent = serie + '/' + n;
-      $('vS').className = 'val';
-    } else {
-      $('lS').textContent = 'SERIES';
-      $('vS').textContent = 'OFF';
-      $('vS').className = 'val off';
-    }
+    $('vS').textContent = n > 1 ? n : 'OFF';
+    $('vS').className = 'val' + (n > 1 ? '' : ' off');
+    $('ctaTxt').textContent = 'INICIAR · ' + fmt(elegido);
+    $('ctaSub').textContent = n > 1 ? ('DESCANSO · SERIE ' + serie + ' / ' + n) : 'DESCANSO';
+    Array.prototype.forEach.call(grid.children, function(b){
+      b.classList.toggle('sel', +b.dataset.s === elegido);
+    });
     $('nomPerfil').textContent = perfil().nombre;
     localStorage.setItem('gt.s', sIdx);
+    localStorage.setItem('gt.d', elegido);
   }
 
   document.querySelectorAll('.bar .step[data-d]').forEach(function(b){
@@ -621,33 +662,29 @@
     var e = null;
     for (var i=0;i<d.ejercicios.length;i++) if (d.ejercicios[i].id === id) e = d.ejercicios[i];
     ejBorrador = e ? { nombre:e.nombre, series:e.series, reps:e.reps, descanso:e.descanso }
-                   : { nombre:'', series:4, reps:12, descanso:90 };
+                   : { nombre:'', series:4, reps:'8-10', descanso:90 };
     $('tEj').textContent = e ? 'Editar ejercicio' : 'Nuevo ejercicio';
     $('ejNom').value = ejBorrador.nombre;
+    $('ejRep').value = String(ejBorrador.reps);
     $('borrarEj').style.display = e ? '' : 'none';
     pintarEj(); ir('scEj');
   }
   function pintarEj(){
     $('ejSer').textContent = ejBorrador.series;
-    $('ejRep').textContent = ejBorrador.reps;
     $('ejDes').textContent = fmt(ejBorrador.descanso);
   }
   document.querySelectorAll('.step[data-ej]').forEach(function(b){
     b.addEventListener('click', function(){
       var d = +b.dataset.d;
       if (b.dataset.ej === 'ser') ejBorrador.series = Math.min(20, Math.max(1, ejBorrador.series + d));
-      else if (b.dataset.ej === 'rep') ejBorrador.reps = Math.min(100, Math.max(1, ejBorrador.reps + d));
-      else {
-        var i = TIMES.indexOf(ejBorrador.descanso);
-        if (i < 0) i = TIMES.indexOf(90);
-        ejBorrador.descanso = TIMES[Math.min(TIMES.length-1, Math.max(0, i + d))];
-      }
+      else ejBorrador.descanso = Math.min(600, Math.max(15, ejBorrador.descanso + d*15));
       pintarEj(); buzz(8);
     });
   });
   $('guardarEj').addEventListener('click', function(){
     var d = dia(); if (!d) return;
     ejBorrador.nombre = ($('ejNom').value || '').trim() || 'Ejercicio ' + (d.ejercicios.length + 1);
+    ejBorrador.reps = ($('ejRep').value || '').trim() || '8-10';
     if (ejAbierto){
       for (var i=0;i<d.ejercicios.length;i++) if (d.ejercicios[i].id === ejAbierto){
         d.ejercicios[i].nombre = ejBorrador.nombre;
@@ -757,6 +794,111 @@
     document.body.appendChild(ov);
     setTimeout(function(){ inp.focus(); inp.select(); }, 50);
   }
+
+
+  /* ============ importar / exportar ============ */
+  // Formato: los días empiezan por #. Cada ejercicio en una línea:
+  //   Nombre  SERIESxREPS  DESCANSO       ->  Press banca 4x8-10 1:30
+  // El descanso admite segundos (90) o min:seg (1:30). Si falta, 1:30.
+  var LINEA = /^(.*?)[\s,;:·|–-]*(\d{1,2})\s*[x×X*]\s*(\d{1,3}(?:\s*[-–\/]\s*\d{1,3})?)(?:\s+(\d{1,2}:\d{2}|\d{1,3})\s*s?)?\s*$/;
+
+  function aSegundos(txt){
+    if (!txt) return 90;
+    if (txt.indexOf(':') > 0){
+      var t = txt.split(':');
+      return Math.min(600, Math.max(5, (+t[0])*60 + (+t[1])));
+    }
+    return Math.min(600, Math.max(5, +txt));
+  }
+  function buscarDia(lista, nombre){
+    for (var i=0;i<lista.length;i++)
+      if (lista[i].nombre.toLowerCase() === nombre.toLowerCase()) return lista[i];
+    var d = { id:uid(), nombre:nombre, ejercicios:[] };
+    lista.push(d); return d;
+  }
+  function analizar(txt){
+    var dias = [], actual = null;
+    txt.split(/\r?\n/).forEach(function(linea){
+      var l = linea.trim();
+      if (!l || /^-{3,}$/.test(l)) return;
+      if (l.charAt(0) === '#'){
+        var nom = l.replace(/^#+/, '').trim();
+        if (nom) actual = buscarDia(dias, nom);
+        return;
+      }
+      if (!actual) actual = buscarDia(dias, 'Día 1');
+      l = l.replace(/^[-*•]\s+/, '').replace(/^\d+[.)]\s+/, '');   // viñetas y numeración
+      var m = l.match(LINEA), ej;
+      if (m){
+        ej = { id:uid(), nombre:m[1].trim() || 'Ejercicio',
+               series:Math.min(20, Math.max(1, +m[2])),
+               reps:m[3].replace(/\s+/g,''), descanso:aSegundos(m[4]) };
+      } else {
+        ej = { id:uid(), nombre:l, series:4, reps:'8-10', descanso:90 };
+      }
+      actual.ejercicios.push(ej);
+    });
+    return dias;
+  }
+  function exportarPlan(){
+    return perfil().dias.map(function(d){
+      return '# ' + d.nombre + '\n' + d.ejercicios.map(function(e){
+        return e.nombre + ' ' + e.series + 'x' + e.reps + ' ' + fmt(e.descanso);
+      }).join('\n');
+    }).join('\n\n');
+  }
+  function importar(reemplazar){
+    var dias = analizar($('impTxt').value || '');
+    if (!dias.length){ alert('No he encontrado ningún día. Recuerda empezar cada día por #.'); return; }
+    var nEj = 0;
+    dias.forEach(function(d){ nEj += d.ejercicios.length; });
+    if (reemplazar){
+      if (!confirm('Esto borra tus ' + perfil().dias.length + ' días actuales y los sustituye por ' +
+                   dias.length + '. ¿Seguro?')) return;
+      perfil().dias = dias;
+    } else {
+      dias.forEach(function(d){
+        var ex = null, ds = perfil().dias;
+        for (var i=0;i<ds.length;i++) if (ds[i].nombre.toLowerCase() === d.nombre.toLowerCase()) ex = ds[i];
+        if (ex) ex.ejercicios = ex.ejercicios.concat(d.ejercicios);
+        else perfil().dias.push(d);
+      });
+    }
+    guardar();
+    alert(dias.length + (dias.length===1?' día':' días') + ' y ' + nEj + ' ejercicios importados.');
+    ir('scDias'); pintarDias();
+  }
+  $('abrirImp').addEventListener('click', function(){ ir('scImp'); });
+  $('impAdd').addEventListener('click', function(){ importar(false); });
+  $('impRep').addEventListener('click', function(){ importar(true); });
+  $('impExp').addEventListener('click', function(){ $('impTxt').value = exportarPlan(); });
+  $('impEj').addEventListener('click', function(){ $('impTxt').value = EJEMPLO; });
+
+  var EJEMPLO = [
+    '# PUSH - (Pecho · Hombros · Tríceps)',
+    'Press banca mancuernas 4x5-7 2:00',
+    'Press inclinado 30° 4x8-10 1:30',
+    'Superserie hombro (reverse fly + laterales + frontales) 3x12-15 1:30',
+    'Fondos en paralelas 4x5-7 1:30',
+    'Extensión tríceps unilateral 3x10-12 1:00',
+    '',
+    '# LEGS - (Piernas · Glúteo · Core)',
+    'Sentadillas goblet 4x12-15 1:30',
+    'Peso muerto rumano 4x12-15 1:15',
+    'Zancadas caminando 2x6-8 1:00',
+    'Hip thrust suelo 3x12-15 1:00',
+    'Gemelos 3x15-20 0:45',
+    'Core circuito (crunch, elevación piernas, tijeras, plancha) 2x1 2:00',
+    '',
+    '# PULL - (Espalda · Bíceps)',
+    'Dominadas pronas 5x8-10 2:00',
+    'Remo Gironda mancuernas 4x10-12 1:15',
+    'Remo unilateral mancuerna 3x8-10 1:00',
+    'Encogimientos 3x15-20 1:00',
+    'Pájaros en banco inclinado 3x12-15 1:00',
+    'Curl bíceps supino 3x10-12 1:30',
+    'Curl martillo 3x10-12 1:30'
+  ].join('\n');
 
   /* ============ arranque ============ */
   cargar();
