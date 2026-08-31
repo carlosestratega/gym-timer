@@ -35,7 +35,7 @@
   /* ---------- barras ---------- */
   .bar{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap);flex:0 0 auto}
   .ctrl{
-    background:var(--card);border:1px solid var(--line);border-radius:14px;
+    background:var(--card);border:1px solid var(--line);border-radius:14px;color:var(--txt);
     display:flex;align-items:center;justify-content:space-between;
     padding:clamp(4px,.8vmin,8px) clamp(6px,1vmin,10px);
     gap:4px;min-height:clamp(46px,7.2vmin,62px);
@@ -949,7 +949,10 @@
     return true;
   }
 
-  function aviso(txt){ if ($('nubeSub')) $('nubeSub').textContent = txt; }
+  function aviso(txt, mal){
+    if ($('nubeSub')) $('nubeSub').textContent = txt;
+    if ($('nubeTit')) $('nubeTit').textContent = mal ? '⚠️ La nube da error' : '☁️ Copia en la nube activada';
+  }
 
   function escucharNube(){
     var ref = nube.fs.doc(nube.db, 'usuarios', nube.uid);
@@ -965,8 +968,8 @@
       aviso((nube.email || 'conectado') + ' · al día');
     }, function(e){
       aviso(e && e.code === 'permission-denied'
-        ? '⚠️ Reglas de Firestore sin publicar'
-        : '⚠️ ' + ((e && e.code) || 'sin conexión'));
+        ? 'Reglas de Firestore sin publicar'
+        : ((e && e.code) || 'sin conexión'), true);
     });
   }
 
@@ -978,8 +981,8 @@
         .then(function(){ aviso((nube.email || 'conectado') + ' · guardado'); })
         .catch(function(e){
           aviso(e && e.code === 'permission-denied'
-            ? '⚠️ Reglas de Firestore sin publicar'
-            : '⚠️ no se pudo guardar (' + ((e && e.code) || 'error') + ')');
+            ? 'Reglas de Firestore sin publicar'
+            : 'no se pudo guardar (' + ((e && e.code) || 'error') + ')', true);
         });
     }, ya ? 0 : 1200);
   }
@@ -1000,7 +1003,7 @@
       if (c.indexOf('popup') >= 0){
         try { await nube.authM.signInWithRedirect(nube.auth, prov); return; } catch(e2){}
       }
-      aviso('⚠️ ' + (c === 'auth/unauthorized-domain' ? 'dominio no autorizado' : (c || 'no se pudo entrar')));
+      aviso(c === 'auth/unauthorized-domain' ? 'dominio no autorizado' : (c || 'no se pudo entrar'), true);
     }
   }
 
