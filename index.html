@@ -814,11 +814,13 @@
       $('goHint').textContent = 'Toca cuando tengas las pesas y el material listos';
       return;
     }
+    // última serie del último ejercicio: no hay nada que descansar, se acaba aquí
+    var elFinal = (W.serie >= e.series) && (W.iEj >= n - 1);
     $('goTag').textContent = 'SERIE ' + W.serie + ' / ' + e.series;
     $('goName').textContent = e.nombre;
     $('goReps').textContent = e.reps + ' repeticiones';
-    $('goBtn').textContent = 'INICIAR DESCANSO · ' + fmt(e.descanso);
-    $('goHint').textContent = 'Dale al acabar la serie';
+    $('goBtn').textContent = elFinal ? '✓ ENTRENO COMPLETO' : ('INICIAR DESCANSO · ' + fmt(e.descanso));
+    $('goHint').textContent = elFinal ? 'Dale al acabar la última serie' : 'Dale al acabar la serie';
   }
   $('goBtn').addEventListener('click', function(){
     if (!W) return;
@@ -827,16 +829,20 @@
     var d = dia(), e = ejActual();
     var ultima = W.serie >= e.series;
     var sig = (W.iEj < d.ejercicios.length - 1) ? d.ejercicios[W.iEj + 1] : null;
+    if (ultima && !sig){
+      // se acabó: descansar ahora no sirve para nada
+      W.fase = 'fin';
+      buzz([200,90,200]);
+      hablar('Entreno completo. Buen trabajo.');
+      pintarGo();
+      return;
+    }
     var et = 'DESCANSO · ' + esc(e.nombre) + ' · SERIE <b>' + W.serie + '</b> / ' + e.series;
     var msg = null;
     if (ultima){
-      et = sig ? 'ÚLTIMO DESCANSO · LUEGO <b>' + esc(sig.nombre) + '</b>'
-               : 'ÚLTIMO DESCANSO DEL ENTRENO';
-      msg = sig
-        ? { titulo:'PRÓXIMO EJERCICIO', nombre:sig.nombre, sub:'Prepárate',
-            voz:'Próximo ejercicio: ' + sig.nombre + '. Prepárate.' }
-        : { titulo:'ENTRENO COMPLETO', nombre:'¡Hecho!', sub:'Buen trabajo',
-            voz:'Entreno completo. Buen trabajo.' };
+      et = 'ÚLTIMO DESCANSO · LUEGO <b>' + esc(sig.nombre) + '</b>';
+      msg = { titulo:'PRÓXIMO EJERCICIO', nombre:sig.nombre, sub:'Prepárate',
+              voz:'Próximo ejercicio: ' + sig.nombre + '. Prepárate.' };
     }
     empezarDescanso(e.descanso, et, function(){
       if (!W) return;
