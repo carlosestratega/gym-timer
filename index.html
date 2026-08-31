@@ -8,7 +8,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="description" content="Temporizadores de entrenamiento. Sin registro, sin anuncios.">
+<meta name="description" content="Temporizador de descansos para entrenar. Sin registro, sin anuncios.">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -21,13 +21,12 @@
     --txt:#f2f5f8;
     --dim:#8b95a3;
     --work:#b6ff3a;
-    --rest:#38bdf8;
+    --warn:#ffb020;
     --gap:clamp(6px,1.1vmin,12px);
   }
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
   html,body{height:100%;overscroll-behavior:none}
   body{
-    /* fijo al viewport: inmune a la barra de Safari, sin rebote ni temblor */
     position:fixed;inset:0;width:100%;
     background:var(--bg);color:var(--txt);
     font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,system-ui,sans-serif;
@@ -43,7 +42,7 @@
     max-width:1200px;margin:0 auto;width:100%;
   }
 
-  /* ---------- barra de ajustes ---------- */
+  /* ---------- barra superior ---------- */
   .bar{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap);flex:0 0 auto}
   .ctrl{
     background:var(--card);border:1px solid var(--line);border-radius:14px;
@@ -51,9 +50,9 @@
     padding:clamp(4px,.8vmin,8px) clamp(6px,1vmin,10px);
     gap:4px;min-height:clamp(46px,7.5vmin,64px);
   }
-  .ctrl .lbl{font-size:clamp(9px,1.5vmin,12px);letter-spacing:.14em;color:var(--dim);font-weight:700}
-  .ctrl .val{font-size:clamp(16px,3vmin,24px);font-weight:800;line-height:1;min-width:3.2em;text-align:center}
-  .ctrl .val.off{color:var(--dim);font-weight:700}
+  .lbl{font-size:clamp(9px,1.5vmin,12px);letter-spacing:.14em;color:var(--dim);font-weight:700}
+  .val{font-size:clamp(16px,3vmin,24px);font-weight:800;line-height:1;min-width:3.2em;text-align:center}
+  .val.off{color:var(--dim);font-weight:700}
   .mid{display:flex;flex-direction:column;align-items:center;gap:2px}
   .step{
     width:clamp(32px,5.2vmin,44px);height:clamp(32px,5.2vmin,44px);flex:0 0 auto;
@@ -61,8 +60,14 @@
     font-size:clamp(17px,2.8vmin,23px);font-weight:700;line-height:1;cursor:pointer;
   }
   .step:active{background:#333c48;transform:scale(.94)}
+  /* botón de probar sonido, ocupa toda su celda */
+  button.ctrl{width:100%;cursor:pointer;justify-content:center;font:inherit}
+  button.ctrl:active{background:var(--card-2)}
+  button.ctrl.ko{border-color:#7a2d38;background:#2a1a1e}
+  button.ctrl.ok{border-color:var(--work)}
+  #sndTxt{font-size:clamp(12px,2.1vmin,17px);font-weight:800;letter-spacing:.02em;white-space:nowrap}
 
-  /* ---------- rejilla de tiempos ---------- */
+  /* ---------- rejilla de descansos ---------- */
   .grid{
     flex:1 1 auto;display:grid;gap:var(--gap);min-height:0;
     grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(4,1fr);
@@ -73,17 +78,15 @@
   .t{
     border:1px solid var(--line);border-radius:16px;background:var(--card);
     color:var(--txt);cursor:pointer;
-    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    display:flex;align-items:center;justify-content:center;
     font-weight:800;line-height:1;
     font-size:clamp(22px,min(9vw,6.4vh),58px);
     letter-spacing:-.02em;
     transition:transform .06s ease, background .12s ease;
   }
   .t:active{transform:scale(.96);background:var(--work);color:#0b0d10;border-color:var(--work)}
-  .t .tot{font-size:.32em;font-weight:700;color:var(--dim);letter-spacing:.02em}
-  .t:active .tot{color:#0b0d10;opacity:.7}
 
-  /* ---------- pantalla en marcha ---------- */
+  /* ---------- pantalla de descanso ---------- */
   .run{
     position:fixed;inset:0;background:var(--bg);z-index:10;
     display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -110,6 +113,7 @@
     font-size:calc(var(--ring) * .30);font-weight:800;letter-spacing:-.04em;line-height:1;
     color:var(--acc,var(--work));
   }
+  .big.go{font-size:calc(var(--ring) * .34)}
   .hint{font-size:clamp(12px,2.2vmin,17px);color:var(--dim);font-weight:600;letter-spacing:.04em}
   .stop{
     position:fixed;top:calc(env(safe-area-inset-top) + 10px);right:calc(env(safe-area-inset-right) + 12px);
@@ -126,22 +130,18 @@
 <div id="app">
   <div class="bar">
     <div class="ctrl">
-      <button class="step" data-set="s" data-d="-1" aria-label="menos series">−</button>
-      <div class="mid"><span class="lbl">SERIES</span><span class="val off" id="vS">OFF</span></div>
-      <button class="step" data-set="s" data-d="1" aria-label="más series">+</button>
+      <button class="step" data-d="-1" aria-label="menos series">−</button>
+      <div class="mid"><span class="lbl" id="lS">SERIES</span><span class="val off" id="vS">OFF</span></div>
+      <button class="step" data-d="1" aria-label="más series">+</button>
     </div>
-    <div class="ctrl">
-      <button class="step" data-set="r" data-d="-1" aria-label="menos descanso">−</button>
-      <div class="mid"><span class="lbl">DESCANSO</span><span class="val off" id="vR">OFF</span></div>
-      <button class="step" data-set="r" data-d="1" aria-label="más descanso">+</button>
-    </div>
+    <button class="ctrl" id="snd"><span class="mid"><span class="lbl">TOCA PARA</span><span id="sndTxt">🔊 PROBAR</span></span></button>
   </div>
   <div class="grid" id="grid"></div>
 </div>
 
 <div class="run" id="run" hidden>
   <button class="stop" id="stop" aria-label="parar">✕</button>
-  <div class="phase" id="phase">SERIE <b>1</b> / 5</div>
+  <div class="phase" id="phase">DESCANSO</div>
   <div class="ring" id="ring"><div class="in"><div class="big" id="big">00:00</div></div></div>
   <div class="hint" id="hint">Toca para pausar</div>
 </div>
@@ -151,14 +151,13 @@
   'use strict';
 
   /* ============ datos ============ */
+  // Los tiempos son DESCANSOS. La serie no se cronometra: dura lo que dure.
   var TIMES  = [15,30,45,60,75,90,105,120,135,150,165,180];
   var SERIES = [1,2,3,4,5,6,7,8,10,12,15,20];
-  var RESTS  = [0,10,15,20,30,45,60,90,120,180];
 
   var sIdx = +(localStorage.getItem('gt.s') || 0);
-  var rIdx = +(localStorage.getItem('gt.r') || 0);
   if (!(sIdx >= 0 && sIdx < SERIES.length)) sIdx = 0;
-  if (!(rIdx >= 0 && rIdx < RESTS.length))  rIdx = 0;
+  var serie = 1;                    // serie que toca hacer ahora
 
   var $ = function(id){ return document.getElementById(id); };
   function fmt(s){
@@ -167,24 +166,51 @@
     return (m<10?'0':'')+m+':'+(r<10?'0':'')+r;
   }
 
-  /* ============ audio (programado por adelantado) ============ */
-  var ctx = null, nodes = [];
+  /* ============ audio ============ */
+  /* Los avisos se programan por adelantado en el Web Audio API: suenan a su
+     hora aunque el navegador congele los temporizadores en segundo plano. */
+  var ctx = null, master = null, nodes = [], alive = null;
+
   function audio(){
     var AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return null;
-    if (!ctx) ctx = new AC();
+    if (!ctx){
+      // iOS 16.4+: 'playback' hace que suene aunque el móvil esté en silencio
+      try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch(e){}
+      ctx = new AC();
+      master = ctx.createGain();
+      master.gain.value = 1;
+      var comp = ctx.createDynamicsCompressor();   // más volumen percibido
+      master.connect(comp); comp.connect(ctx.destination);
+    }
     if (ctx.state === 'suspended') ctx.resume();
     return ctx;
   }
+
+  // Un bucle mudo mantiene viva la sesión de audio de iOS mientras corre la
+  // cuenta atrás, para que los avisos programados no se queden por el camino.
+  function keepAudioAlive(on){
+    if (!ctx) return;
+    if (on && !alive){
+      var b = ctx.createBuffer(1, Math.max(1, Math.floor(ctx.sampleRate/2)), ctx.sampleRate);
+      var s = ctx.createBufferSource();
+      s.buffer = b; s.loop = true; s.connect(master); s.start();
+      alive = s;
+    } else if (!on && alive){
+      try{ alive.stop(); }catch(e){}
+      alive = null;
+    }
+  }
+
   function beep(at, dur, freq, vol){
     var o = ctx.createOscillator(), g = ctx.createGain();
     o.type = 'square';
-    o.frequency.setValueAtTime(freq, at);
+    o.frequency.value = freq;   // valor directo: no depende de la línea temporal del parámetro
     g.gain.setValueAtTime(0.0001, at);
     g.gain.exponentialRampToValueAtTime(vol, at + 0.012);
-    g.gain.setValueAtTime(vol, at + dur - 0.04);
+    g.gain.setValueAtTime(vol, at + dur - 0.05);
     g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
-    o.connect(g); g.connect(ctx.destination);
+    o.connect(g); g.connect(master);
     o.start(at); o.stop(at + dur + 0.03);
     nodes.push(o);
   }
@@ -192,18 +218,40 @@
     for (var i=0;i<nodes.length;i++){ try{ nodes[i].stop(); }catch(e){} }
     nodes = [];
   }
-  // patrones: [offset, duración, frecuencia]
-  var ALARM = [[0,.22,880],[.42,.22,880],[.84,.22,880],[1.26,.22,880],[1.85,1.25,1245]]; // ~3,1 s
-  var SHORT = [[0,.2,880],[.36,.2,880],[.72,.55,1245]];                                   // ~1,3 s
-  var GO    = [[0,.6,1245]];
-  function schedule(secs, pattern, ticks){
+
+  var AVISO_30 = 30;      // aviso a falta de 30 s
+  var TICKS    = 5;       // tic-tic-tic-tic-tic en los últimos 5 s
+  var GO_DUR   = 2.4;     // pitido largo de "ya, a entrenar"
+
+  // Programa todos los avisos de un descanso de `secs` segundos.
+  function programarAvisos(secs){
     if (!audio()) return;
-    var t0 = ctx.currentTime + secs;
-    if (ticks && secs > 3.4){
-      beep(t0-3, .09, 520, .35); beep(t0-2, .09, 520, .35); beep(t0-1, .09, 520, .35);
+    var fin = ctx.currentTime + secs;
+    if (secs > AVISO_30 + 2){                       // aviso de media: dos pitidos
+      beep(fin - AVISO_30,        .13, 520, .55);
+      beep(fin - AVISO_30 + 0.22, .13, 520, .55);
     }
-    for (var i=0;i<pattern.length;i++) beep(t0 + pattern[i][0], pattern[i][1], pattern[i][2], .9);
+    for (var i = TICKS; i >= 1; i--){               // cuenta atrás
+      if (secs > i + 0.3) beep(fin - i, .10, 700, .75);
+    }
+    beep(fin, GO_DUR, 1100, .95);                   // ¡YA!
   }
+
+  function probarSonido(){
+    var c = audio();
+    var b = $('snd'), t = $('sndTxt');
+    if (!c){ b.className = 'ctrl ko'; t.textContent = '✕ SIN AUDIO'; return; }
+    silence();
+    beep(c.currentTime + 0.02, .10, 700, .75);
+    beep(c.currentTime + 0.32, .10, 700, .75);
+    beep(c.currentTime + 0.62, 1.1, 1100, .95);
+    setTimeout(function(){
+      var ok = ctx.state === 'running';
+      b.className = 'ctrl ' + (ok ? 'ok' : 'ko');
+      t.textContent = ok ? '🔊 ¿SE OYE?' : '✕ BLOQUEADO';
+    }, 250);
+  }
+
   function buzz(ms){ try{ navigator.vibrate && navigator.vibrate(ms); }catch(e){} }
 
   /* ============ pantalla encendida ============ */
@@ -217,116 +265,104 @@
     }
   }
 
-  /* ============ estado ============ */
-  var run = null;   // {kind, work, dur, endAt, serie, total, rest, paused, left, ended}
-  var to = null, raf = null;
+  /* ============ descanso ============ */
+  var run = null;   // {dur, endAt, paused, left, ended, go}
+  var to = null, raf = null, acc = '';
   var elRun = $('run'), elBig = $('big'), elRing = $('ring'), elPhase = $('phase'), elHint = $('hint');
 
-  function startPhase(kind, secs){
-    run.kind = kind;
-    run.dur  = secs;
-    run.endAt = performance.now() + secs*1000;
-    run.ended = false;
-    var last = (kind === 'work' && run.serie >= run.total);
-    var pat  = kind === 'rest' ? GO : (last || run.rest > 0 ? ALARM : SHORT);
+  function empezarDescanso(secs){
+    audio();                        // este toque desbloquea el sonido
+    keepAudioAlive(true);
+    run = { dur:secs, endAt:performance.now() + secs*1000, paused:false, left:0, ended:false, go:false };
+    elRun.hidden = false;
+    elRun.classList.remove('paused');
+    elBig.classList.remove('go');
+    keepAwake(true);
     silence();
-    schedule(secs, pat, true);
-    clearTimeout(to);
-    to = setTimeout(phaseEnd, secs*1000);
-    paint(true);
+    programarAvisos(secs);
+    clearTimeout(to); to = setTimeout(finDescanso, secs*1000);
+    setAcc('var(--work)');
+    pintar(true);
+    cancelAnimationFrame(raf); raf = requestAnimationFrame(bucle);
   }
 
-  function phaseEnd(){
+  function finDescanso(){
     if (!run || run.ended) return;
-    run.ended = true;
+    run.ended = true; run.go = true;
     clearTimeout(to);
-    buzz([120,80,120]);
-    if (run.kind === 'rest'){
-      run.serie++;
-      startPhase('work', run.work);
-      return;
-    }
-    if (run.serie < run.total){
-      if (run.rest > 0){ startPhase('rest', run.rest); }
-      else { run.serie++; startPhase('work', run.work); }
-      return;
-    }
-    // terminado: suena la alarma y se cierra solo
-    run.done = true;
-    paint(true);
-    to = setTimeout(stop, 3400);
+    buzz([200,90,200]);
+    setAcc('var(--work)');
+    pintar(true);
+    // el pitido largo suena solo y el temporizador se para solo:
+    // te quedas listo para la siguiente serie sin tocar la pantalla.
+    to = setTimeout(function(){
+      if (serie < SERIES[sIdx]) serie++;
+      else serie = 1;
+      parar();
+    }, GO_DUR*1000 + 200);
   }
 
-  function paint(force){
+  function setAcc(c){ if (c !== acc){ acc = c; elRun.style.setProperty('--acc', c); } }
+
+  function pintar(forzar){
     if (!run) return;
-    if (run.done){
-      elPhase.textContent = 'HECHO';
-      elBig.textContent = '00:00';
-      elRing.style.setProperty('--p', 0);
-      elHint.textContent = 'Toca para volver';
+    if (run.go){
+      elPhase.textContent = 'A ENTRENAR';
+      elBig.textContent = '¡YA!';
+      elBig.classList.add('go');
+      elRing.style.setProperty('--p', 1);
+      elHint.textContent = 'Se para solo';
       return;
     }
     var left = run.paused ? run.left : (run.endAt - performance.now());
     if (left < 0) left = 0;
     elBig.textContent = fmt(left/1000);
     elRing.style.setProperty('--p', run.dur ? (left/1000)/run.dur : 0);
-    if (force){
-      var acc = run.kind === 'rest' ? 'var(--rest)' : 'var(--work)';
-      elRun.style.setProperty('--acc', acc);
-      elPhase.innerHTML = run.total > 1
-        ? (run.kind === 'rest' ? 'DESCANSO · ' : '') + 'SERIE <b>' + run.serie + '</b> / ' + run.total
-        : (run.kind === 'rest' ? 'DESCANSO' : 'EN MARCHA');
+    setAcc(left <= TICKS*1000 ? 'var(--warn)' : 'var(--work)');
+    if (forzar){
+      elPhase.innerHTML = SERIES[sIdx] > 1
+        ? 'DESCANSO · SERIE <b>' + serie + '</b> / ' + SERIES[sIdx]
+        : 'DESCANSO';
     }
     elHint.textContent = run.paused ? 'PAUSA · toca para seguir' : 'Toca para pausar';
   }
 
-  function loop(){
+  function bucle(){
     if (!run) return;
-    if (!run.paused && !run.done){
-      paint(false);
-      if (performance.now() >= run.endAt) phaseEnd();   // por si el navegador frena el timer
+    if (!run.paused && !run.go){
+      pintar(false);
+      if (performance.now() >= run.endAt) finDescanso();   // por si el navegador frena el timer
     }
-    raf = requestAnimationFrame(loop);
+    raf = requestAnimationFrame(bucle);
   }
 
-  function start(secs){
-    audio();                       // desbloquea el sonido con este toque
-    run = { kind:'work', work:secs, dur:secs, serie:1, total:SERIES[sIdx],
-            rest:RESTS[rIdx], paused:false, left:0, ended:false, done:false };
-    elRun.hidden = false;
-    elRun.classList.remove('paused');
-    keepAwake(true);
-    startPhase('work', secs);
-    cancelAnimationFrame(raf); raf = requestAnimationFrame(loop);
-  }
-
-  function togglePause(){
-    if (!run || run.done) { stop(); return; }
+  function pausa(){
+    if (!run || run.go) return;
     if (run.paused){
       run.paused = false;
       run.endAt = performance.now() + run.left;
-      run.ended = false;
-      var last = (run.kind === 'work' && run.serie >= run.total);
-      silence();
-      schedule(run.left/1000, run.kind === 'rest' ? GO : (last || run.rest > 0 ? ALARM : SHORT), true);
-      clearTimeout(to); to = setTimeout(phaseEnd, run.left);
+      silence(); programarAvisos(run.left/1000);
+      clearTimeout(to); to = setTimeout(finDescanso, run.left);
       elRun.classList.remove('paused');
-      keepAwake(true);
+      keepAwake(true); keepAudioAlive(true);
     } else {
       run.paused = true;
       run.left = Math.max(0, run.endAt - performance.now());
       silence(); clearTimeout(to);
       elRun.classList.add('paused');
+      keepAudioAlive(false);
     }
-    paint(true);
+    pintar(true);
   }
 
-  function stop(){
+  function parar(){
     silence(); clearTimeout(to); cancelAnimationFrame(raf);
+    keepAudioAlive(false);
     run = null; raf = null;
     elRun.hidden = true;
     elRun.classList.remove('paused');
     keepAwake(false);
+    pintarAjustes();
   }
 
   /* ============ interfaz ============ */
@@ -334,47 +370,52 @@
   TIMES.forEach(function(s){
     var b = document.createElement('button');
     b.className = 't';
-    b.innerHTML = '<span>' + fmt(s) + '</span><span class="tot"></span>';
-    b.addEventListener('click', function(){ start(s); });
+    b.textContent = fmt(s);
+    b.addEventListener('click', function(){ empezarDescanso(s); });
     grid.appendChild(b);
   });
 
-  function drawSettings(){
-    var n = SERIES[sIdx], r = RESTS[rIdx];
-    $('vS').textContent = n > 1 ? '×' + n : 'OFF';
-    $('vS').className = 'val' + (n > 1 ? '' : ' off');
-    $('vR').textContent = r > 0 ? fmt(r) : 'OFF';
-    $('vR').className = 'val' + (r > 0 ? '' : ' off');
-    var tots = grid.querySelectorAll('.tot');
-    TIMES.forEach(function(s, i){
-      tots[i].textContent = n > 1 ? fmt(n*s + (n-1)*r) : '';
-    });
+  function pintarAjustes(){
+    var n = SERIES[sIdx];
+    if (n > 1){
+      $('lS').textContent = 'SERIE';
+      $('vS').textContent = serie + '/' + n;
+      $('vS').className = 'val';
+    } else {
+      $('lS').textContent = 'SERIES';
+      $('vS').textContent = 'OFF';
+      $('vS').className = 'val off';
+    }
     localStorage.setItem('gt.s', sIdx);
-    localStorage.setItem('gt.r', rIdx);
   }
 
   document.querySelectorAll('.step').forEach(function(b){
     b.addEventListener('click', function(){
-      var d = +b.dataset.d;
-      if (b.dataset.set === 's') sIdx = Math.min(SERIES.length-1, Math.max(0, sIdx + d));
-      else                       rIdx = Math.min(RESTS.length-1,  Math.max(0, rIdx + d));
-      drawSettings();
+      sIdx = Math.min(SERIES.length-1, Math.max(0, sIdx + (+b.dataset.d)));
+      serie = 1;
+      pintarAjustes();
       buzz(8);
     });
   });
-  drawSettings();
+  pintarAjustes();
 
-  elRun.addEventListener('click', togglePause);
-  $('stop').addEventListener('click', function(e){ e.stopPropagation(); stop(); });
+  $('snd').addEventListener('click', probarSonido);
+  elRun.addEventListener('click', pausa);
+  $('stop').addEventListener('click', function(e){ e.stopPropagation(); parar(); });
   document.addEventListener('keydown', function(e){
-    if (e.code === 'Escape' && run) stop();
-    else if (e.code === 'Space' && run){ e.preventDefault(); togglePause(); }
+    if (e.code === 'Escape' && run) parar();
+    else if (e.code === 'Space' && run){ e.preventDefault(); pausa(); }
   });
   document.addEventListener('visibilitychange', function(){
     if (!document.hidden && run && !run.paused){
       keepAwake(true);
-      if (performance.now() >= run.endAt) phaseEnd();
+      if (performance.now() >= run.endAt) finDescanso();
     }
+  });
+  // desbloquea el audio en cuanto toques cualquier cosa
+  document.addEventListener('pointerdown', function armar(){
+    audio();
+    if (ctx && ctx.state === 'running') document.removeEventListener('pointerdown', armar);
   });
 
   if ('serviceWorker' in navigator){
