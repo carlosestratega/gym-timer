@@ -1123,7 +1123,7 @@
         DB = d.db; DB.ts = d.ts;
         try{ localStorage.setItem('gt.db', JSON.stringify(DB)); }catch(e){}
         if (!perfil()) DB.activo = DB.perfiles[0].id;
-        pintarInicio(); pintarPerfiles();
+        pintarInicio(); pintarPerfiles(); aplicarAjustes();
       }
       aviso((nube.email || 'conectado') + ' · al día');
     }, function(e){
@@ -1167,6 +1167,14 @@
     }
   }
 
+  // el modo vive en DB para que viaje a la nube; localStorage es el respaldo
+  function aplicarAjustes(){
+    if (DB && DB.audio === 'musica') modoAudio = 'musica';
+    else if (DB && DB.audio === 'silencio') modoAudio = 'silencio';
+    aplicarModoAudio();
+    pintarAudio();
+  }
+
   function pintarAudio(){
     var musica = (modoAudio === 'musica');
     $('audioTit').textContent = musica ? '🎧 Suena con la música' : '🔇 Suena aunque esté en silencio';
@@ -1176,7 +1184,9 @@
   }
   $('audioBtn').addEventListener('click', function(){
     modoAudio = (modoAudio === 'musica') ? 'silencio' : 'musica';
-    localStorage.setItem('gt.audio', modoAudio);
+    localStorage.setItem('gt.audio', modoAudio);   // por si no hay nube
+    DB.audio = modoAudio;
+    guardar();                                     // y en la nube, con el resto
     aplicarModoAudio();
     pintarAudio();
     // suena al momento para que compruebes el cambio sin salir de aquí
@@ -1204,7 +1214,8 @@
 
   /* ============ arranque ============ */
   cargar();
-  pintarAudio();
+  if (!DB.audio) DB.audio = modoAudio;   // primera vez: sube lo que ya había
+  aplicarAjustes();
   pintarNube();
   if (FB) abrirNube().catch(function(){});
   $('snd').addEventListener('click', probarSonido);
