@@ -234,6 +234,7 @@
     <button class="icb" id="renDia" aria-label="renombrar">✎</button>
     <button class="icb del" id="delDia" aria-label="borrar">🗑</button>
   </div>
+  <div class="ayuda" id="resDia"></div>
   <div class="list" id="listEjs"></div>
   <button class="add" id="addEj">＋ Añadir ejercicio</button>
   <button class="cta" id="empezarDia">▶ EMPEZAR ENTRENO</button>
@@ -343,11 +344,29 @@
     for (var i=0;i<DB.perfiles.length;i++) if (DB.perfiles[i].id === DB.activo) return DB.perfiles[i];
     return null;
   }
+  // Cuánto se tarda: 40 s de trabajo por serie más los descansos reales.
+  // La última serie del día no descansa, igual que en el entreno guiado.
+  var TRABAJO = 40;
+  function estimaDia(d){
+    var t = 0;
+    for (var i=0;i<d.ejercicios.length;i++){
+      var e = d.ejercicios[i], ultimo = (i === d.ejercicios.length - 1);
+      t += e.series * TRABAJO;
+      t += (ultimo ? Math.max(0, e.series - 1) : e.series) * e.descanso;
+    }
+    return t;
+  }
+  function fmtDur(sec){
+    var m = Math.round(sec/60);
+    if (m < 60) return m + ' min';
+    var h = Math.floor(m/60), r = m % 60;
+    return h + ' h' + (r ? ' ' + r + ' min' : '');
+  }
   function resumenDia(d){
     if (!d.ejercicios.length) return 'sin ejercicios';
     var n = d.ejercicios.length, s = 0;
     for (var i=0;i<n;i++) s += d.ejercicios[i].series;
-    return n + (n===1?' ejercicio':' ejercicios') + ' · ' + s + ' series';
+    return n + (n===1?' ejercicio':' ejercicios') + ' · ' + s + ' series · ~' + fmtDur(estimaDia(d));
   }
 
   var sIdx = +(localStorage.getItem('gt.s') || 0);
@@ -698,6 +717,13 @@
   function pintarDia(){
     var d = dia(); if (!d){ ir('scDias'); pintarDias(); return; }
     $('tDia').textContent = d.nombre;
+    var ns = 0;
+    for (var k=0;k<d.ejercicios.length;k++) ns += d.ejercicios[k].series;
+    $('resDia').innerHTML = d.ejercicios.length
+      ? '<b style="color:var(--txt);font-size:15px">≈ ' + fmtDur(estimaDia(d)) + '</b> · ' +
+        d.ejercicios.length + (d.ejercicios.length===1?' ejercicio':' ejercicios') + ' · ' + ns + ' series<br>' +
+        'Descansos reales, contando 40 s de trabajo por serie. Sin calentamiento ni cambios de peso.'
+      : '';
     var l = $('listEjs'); l.innerHTML = '';
     if (!d.ejercicios.length){
       l.innerHTML = '<div class="vacio">Este día no tiene ejercicios.<br>Añade el primero abajo.</div>';
