@@ -498,10 +498,19 @@
   }
 
   /* ============ pantalla encendida ============ */
-  var wl = null;
+  var wl = null, avisoPantalla = '';
   function keepAwake(on){
     if (on){
-      if (navigator.wakeLock && !wl) navigator.wakeLock.request('screen').then(function(l){ wl = l; }).catch(function(){});
+      if (!navigator.wakeLock){ avisoPantalla = 'La pantalla puede apagarse'; return; }
+      if (wl) return;
+      navigator.wakeLock.request('screen').then(function(l){
+        wl = l; avisoPantalla = '';
+        l.addEventListener('release', function(){ wl = null; });
+        if (run) pintar(false);
+      }).catch(function(){
+        avisoPantalla = 'La pantalla puede apagarse';
+        if (run) pintar(false);
+      });
     } else if (wl){ try{ wl.release(); }catch(e){} wl = null; }
   }
 
@@ -530,6 +539,12 @@
     run.ended = true; run.go = true;
     clearTimeout(to);
     buzz([200,90,200]);
+    if (run.tarde){
+      // el móvil estuvo suspendido y el pitido programado se quedó por el
+      // camino: suena ahora, tarde pero suena
+      var ct = audio();
+      if (ct){ silence(); beep(ct.currentTime + 0.05, GO_DUR, 1100, .95); }
+    }
     setAcc('var(--work)'); pintar(true);
     // el pitido largo suena solo y el temporizador se cierra solo:
     // te quedas listo para la siguiente serie sin tocar la pantalla.
@@ -570,7 +585,8 @@
     elRing.style.setProperty('--p', run.dur ? (left/1000)/run.dur : 0);
     setAcc(left <= TICKS*1000 ? 'var(--warn)' : 'var(--work)');
     if (forzar) elPhase.innerHTML = run.etiqueta;
-    elHint.textContent = run.paused ? 'PAUSA · toca para seguir' : 'Toca para pausar';
+    elHint.textContent = run.paused ? 'PAUSA · toca para seguir'
+      : (avisoPantalla ? '⚠️ ' + avisoPantalla + ' · toca para pausar' : 'Toca para pausar');
   }
   function bucle(){
     if (!run) return;
@@ -1227,10 +1243,21 @@
     else if (e.code === 'Space' && run){ e.preventDefault(); pausa(); }
   });
   document.addEventListener('visibilitychange', function(){
-    if (!document.hidden && run && !run.paused){
-      keepAwake(true);
-      if (performance.now() >= run.endAt) finDescanso();
+    if (document.hidden || !run || run.paused || run.go) return;
+    keepAwake(true);
+    audio();                                   // el contexto vuelve de la suspensión
+    var queda = run.endAt - performance.now();
+    if (queda <= 0){
+      run.tarde = true;
+      finDescanso();
+      return;
     }
+    // el reloj del audio se congeló con el móvil: lo que quedaba programado
+    // sonaría con retraso, así que se tira y se programa de nuevo
+    silence();
+    programarAvisos(queda / 1000);
+    clearTimeout(to);
+    to = setTimeout(finDescanso, queda);
   });
   document.addEventListener('pointerdown', function armar(){
     audio(); desbloquearVoz();
