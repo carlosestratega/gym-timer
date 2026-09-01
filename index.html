@@ -538,10 +538,13 @@
     if (!run || run.ended) return;
     run.ended = true; run.go = true;
     clearTimeout(to);
-    buzz([200,90,200]);
-    if (run.tarde){
-      // el móvil estuvo suspendido y el pitido programado se quedó por el
-      // camino: suena ahora, tarde pero suena
+    // cuánto hace que debería haber sonado: si el móvil estuvo suspendido
+    // mucho rato, avisar ahora no ayuda, confunde
+    var retraso = Math.max(0, (performance.now() - run.endAt) / 1000);
+    var mudo = run.tarde && retraso > 60;
+    buzz(mudo ? 40 : [200,90,200]);
+    if (run.tarde && !mudo){
+      // el pitido programado se congeló con el móvil: suena ahora
       var ct = audio();
       if (ct){ silence(); beep(ct.currentTime + 0.05, GO_DUR, 1100, .95); }
     }
@@ -549,8 +552,8 @@
     // el pitido largo suena solo y el temporizador se cierra solo:
     // te quedas listo para la siguiente serie sin tocar la pantalla.
     var cb = run.alFinal, msg = run.mensaje;
-    var espera = GO_DUR*1000 + 200;
-    if (msg && msg.voz){
+    var espera = mudo ? 1400 : GO_DUR*1000 + 200;
+    if (msg && msg.voz && !mudo){
       // primero suena el pitido, después la voz: si no, se pisan
       setTimeout(function(){ hablar(msg.voz); }, GO_DUR*1000 + 150);
       espera = GO_DUR*1000 + 3000;
@@ -576,7 +579,7 @@
         elBig.className = 'big go';
         elRing.style.setProperty('--p', 1);
       }
-      elHint.textContent = 'Se para solo';
+      elHint.textContent = run.tarde ? 'El descanso ya había terminado' : 'Se para solo';
       return;
     }
     var left = run.paused ? run.left : (run.endAt - performance.now());
@@ -592,7 +595,11 @@
     if (!run) return;
     if (!run.paused && !run.go){
       pintar(false);
-      if (performance.now() >= run.endAt) finDescanso();   // por si el navegador frena el timer
+      if (performance.now() >= run.endAt){
+        // más de segundo y medio pasado quiere decir que estuvimos congelados
+        if (performance.now() - run.endAt > 1500) run.tarde = true;
+        finDescanso();                    // por si el navegador frena el timer
+      }
     }
     raf = requestAnimationFrame(bucle);
   }
