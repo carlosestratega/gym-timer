@@ -169,6 +169,20 @@
     color:var(--acc,var(--work));
   }
   .avisoBig[hidden]{display:none}
+  /* durante el último descanso: lo que toca preparar, bien visible */
+  .prepara{
+    text-align:center;max-width:92vw;line-height:1.12;
+    font-size:clamp(19px,min(5.6vw,4.2vh),36px);font-weight:800;color:var(--txt);
+    overflow-wrap:break-word;
+  }
+  .prepara[hidden]{display:none}
+  .prepara span{
+    display:block;margin-bottom:6px;font-size:.46em;font-weight:800;
+    letter-spacing:.18em;color:var(--warn);text-transform:uppercase;
+  }
+  /* con el aviso puesto, el anillo cede sitio */
+  .run.prep{--ring:min(58vmin,430px)}
+  @media (orientation:landscape){ .run.prep{--ring:min(50vmin,360px)} }
   .avisoBig .prep{
     display:block;margin-top:clamp(10px,2.5vmin,20px);font-size:.4em;color:var(--dim);
     letter-spacing:.18em;text-transform:uppercase;font-weight:800;
@@ -313,6 +327,7 @@
   <div class="phase" id="phase">DESCANSO</div>
   <div class="ring" id="ring"><div class="in"><div class="big" id="big">00:00</div></div></div>
   <div class="avisoBig" id="avisoBig" hidden></div>
+  <div class="prepara" id="prepara" hidden></div>
   <div class="hint" id="hint">Toca para pausar</div>
 </div>
 
@@ -528,6 +543,16 @@
     elRun.classList.remove('paused');
     elBig.className = 'big';
     elRing.hidden = false; $('avisoBig').hidden = true;
+    var prep = mensaje && mensaje.prepara;
+    $('prepara').hidden = !prep;
+    elRun.classList.toggle('prep', !!prep);
+    if (prep){
+      $('prepara').innerHTML = '';
+      var et = document.createElement('span');
+      et.textContent = 'Prepara el siguiente';
+      $('prepara').appendChild(et);
+      $('prepara').appendChild(document.createTextNode(mensaje.prepara));
+    }
     keepAwake(true);
     silence(); programarAvisos(secs);
     clearTimeout(to); to = setTimeout(finDescanso, secs*1000);
@@ -568,6 +593,7 @@
       elPhase.innerHTML = m ? m.titulo : 'A ENTRENAR';
       elRing.hidden = !!m;
       $('avisoBig').hidden = !m;
+      if (m) { $('prepara').hidden = true; elRun.classList.remove('prep'); }
       if (m){
         $('avisoBig').innerHTML = '';
         $('avisoBig').appendChild(document.createTextNode(m.nombre));
@@ -627,6 +653,7 @@
     run = null; raf = null;
     elRun.hidden = true; elRun.classList.remove('paused');
     elRing.hidden = false; $('avisoBig').hidden = true;
+    $('prepara').hidden = true; elRun.classList.remove('prep');
     keepAwake(false);
   }
   // ✕ : corta el descanso sin dar la serie por hecha
@@ -914,8 +941,9 @@
     var et = 'DESCANSO · ' + esc(e.nombre) + ' · SERIE <b>' + W.serie + '</b> / ' + e.series;
     var msg = null;
     if (ultima){
-      et = 'ÚLTIMO DESCANSO · LUEGO <b>' + esc(sig.nombre) + '</b>';
+      et = 'ÚLTIMO DESCANSO';
       msg = { titulo:'PRÓXIMO EJERCICIO', nombre:sig.nombre, sub:'Prepárate',
+              prepara:sig.nombre,
               voz:'Próximo ejercicio: ' + sig.nombre + '. Prepárate.' };
     }
     empezarDescanso(e.descanso, et, function(){
