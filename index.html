@@ -88,6 +88,8 @@
   .row .info{flex:1;min-width:0;cursor:pointer}
   .row .n{font-weight:800;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .row .s{color:var(--dim);font-size:13px;font-weight:600;margin-top:2px}
+  /* los ajustes de abajo llevan títulos largos: que respiren en dos líneas */
+  #filaAudio .n, #filaNube .n{white-space:normal;line-height:1.25}
   .add{border:1px dashed var(--line);border-radius:14px;background:transparent;color:var(--dim);
     padding:14px;font-size:15px;font-weight:800;cursor:pointer;flex:0 0 auto}
   .add:active{background:var(--card)}
@@ -208,6 +210,13 @@
   </div>
   <div class="list" id="listPerf"></div>
   <button class="add" id="addPerf">＋ Nuevo perfil</button>
+  <div class="row" id="filaAudio">
+    <div class="info" style="cursor:default">
+      <div class="n" id="audioTit">🔇 Suena aunque esté en silencio</div>
+      <div class="s" id="audioSub">Corta la música mientras suena el aviso</div>
+    </div>
+    <button class="icb" id="audioBtn" style="width:auto;padding:0 14px;font-size:14px;font-weight:800">CAMBIAR</button>
+  </div>
   <div class="row" id="filaNube" hidden>
     <div class="info" style="cursor:default">
       <div class="n" id="nubeTit">☁️ Copia en la nube</div>
@@ -380,12 +389,25 @@
      hora aunque el navegador congele los temporizadores en segundo plano. */
   var ctx = null, master = null, nodes = [], alive = null;
 
+  /* Dos categorías de sesión de audio en iOS, y hay que elegir:
+     - 'playback'  : suena con el interruptor de silencio puesto, pero es
+                     exclusiva y corta la música que estuvieras oyendo.
+     - 'transient' : se mezcla con la música y solo la baja un momento, pero
+                     obedece al interruptor de silencio.
+     No hay una que gane siempre, así que lo decide quien entrena. */
+  var modoAudio = localStorage.getItem('gt.audio') || 'silencio';
+  function aplicarModoAudio(){
+    try {
+      if (navigator.audioSession)
+        navigator.audioSession.type = (modoAudio === 'musica' ? 'transient' : 'playback');
+    } catch(e){}
+  }
+
   function audio(){
     var AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return null;
+    aplicarModoAudio();
     if (!ctx){
-      // iOS 16.4+: 'playback' hace que suene aunque el móvil esté en silencio
-      try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch(e){}
       ctx = new AC();
       master = ctx.createGain(); master.gain.value = 1;
       var comp = ctx.createDynamicsCompressor();   // más volumen percibido
@@ -397,6 +419,9 @@
   // Un bucle mudo mantiene viva la sesión de audio de iOS durante la cuenta atrás.
   function keepAudioAlive(on){
     if (!ctx) return;
+    // en modo música el bucle mudo mantendría la canción bajada todo el
+    // descanso, así que ahí no se usa
+    if (on && modoAudio === 'musica') return;
     if (on && !alive){
       var b = ctx.createBuffer(1, Math.max(1, Math.floor(ctx.sampleRate/2)), ctx.sampleRate);
       var s = ctx.createBufferSource();
@@ -1142,6 +1167,23 @@
     }
   }
 
+  function pintarAudio(){
+    var musica = (modoAudio === 'musica');
+    $('audioTit').textContent = musica ? '🎧 Suena con la música' : '🔇 Suena aunque esté en silencio';
+    $('audioSub').textContent = musica
+      ? 'La música baja un momento · el móvil no puede estar en silencio'
+      : 'Corta la música mientras suena el aviso';
+  }
+  $('audioBtn').addEventListener('click', function(){
+    modoAudio = (modoAudio === 'musica') ? 'silencio' : 'musica';
+    localStorage.setItem('gt.audio', modoAudio);
+    aplicarModoAudio();
+    pintarAudio();
+    // suena al momento para que compruebes el cambio sin salir de aquí
+    var c = audio();
+    if (c){ silence(); beep(c.currentTime + 0.02, .1, 700, .75); beep(c.currentTime + 0.3, .6, 1100, .95); }
+  });
+
   function pintarNube(){
     if (!FB) return;
     $('filaNube').hidden = false;
@@ -1162,6 +1204,7 @@
 
   /* ============ arranque ============ */
   cargar();
+  pintarAudio();
   pintarNube();
   if (FB) abrirNube().catch(function(){});
   $('snd').addEventListener('click', probarSonido);
