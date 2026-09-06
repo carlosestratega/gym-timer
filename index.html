@@ -85,6 +85,11 @@
   .row{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);
     border-radius:14px;padding:10px 12px;min-height:60px;flex:0 0 auto}
   .row.sel{border-color:var(--work)}
+  .row.arrastrando{
+    position:relative;z-index:5;border-color:var(--work);
+    box-shadow:0 12px 32px rgba(0,0,0,.6);opacity:.97;
+  }
+  .list.ordenando{touch-action:none}
   .row .info{flex:1;min-width:0;cursor:pointer}
   .row .n{font-weight:800;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .row .s{color:var(--dim);font-size:13px;font-weight:600;margin-top:2px}
@@ -246,6 +251,7 @@
     <button class="icb" data-cerrar>‹</button><h1 id="tDias">Entrenos</h1>
     <button class="icb" id="abrirImp" aria-label="importar">📋</button>
   </div>
+  <div class="ayuda" id="ayudaDias" hidden>Mantén pulsado un día para moverlo de sitio · ⧉ lo duplica para hacer versiones</div>
   <div class="list" id="listDias"></div>
   <button class="add" id="addDia">＋ Nuevo día de entreno</button>
 </div>
@@ -777,13 +783,14 @@
   /* ============ días ============ */
   function pintarDias(){
     $('tDias').textContent = 'Entrenos de ' + perfil().nombre;
+    $('ayudaDias').hidden = perfil().dias.length < 2;
     var l = $('listDias'); l.innerHTML = '';
     var dias = perfil().dias;
     if (!dias.length){
       l.innerHTML = '<div class="vacio">Todavía no tienes días de entreno.<br>Crea uno y añádele ejercicios.</div>';
     }
     dias.forEach(function(d){
-      var r = document.createElement('div'); r.className = 'row';
+      var r = document.createElement('div'); r.className = 'row'; r.dataset.id = d.id;
       var i = document.createElement('div'); i.className = 'info';
       i.innerHTML = '<div class="n">' + esc(d.nombre) + '</div><div class="s">' + resumenDia(d) + '</div>';
       i.addEventListener('click', function(){ diaAbierto = d.id; ir('scDia'); pintarDia(); });
@@ -852,7 +859,7 @@
       l.innerHTML = '<div class="vacio">Este día no tiene ejercicios.<br>Añade el primero abajo.</div>';
     }
     d.ejercicios.forEach(function(e, idx){
-      var r = document.createElement('div'); r.className = 'row';
+      var r = document.createElement('div'); r.className = 'row'; r.dataset.id = e.id;
       var i = document.createElement('div'); i.className = 'info';
       i.innerHTML = '<div class="n">' + (idx+1) + '. ' + esc(e.nombre) + '</div><div class="s">' +
                     e.series + ' × ' + e.reps + ' reps · descanso ' + fmt(e.descanso) + '</div>';
@@ -1309,6 +1316,97 @@
   $('nubeBtn').addEventListener('click', function(){
     if (nube.uid) nube.authM.signOut(nube.auth);
     else entrarNube();
+  });
+
+
+  /* ============ reordenar arrastrando ============ */
+  // Mantener pulsado levanta la fila; al soltarla se guarda el orden nuevo.
+  // Sin librerías: pointer events y reordenar el propio DOM mientras arrastras.
+  function ordenable(cont, alSoltar){
+    var fila = null, reloj = null, y0 = 0, yIni = 0, arrastrando = false, idPuntero = null;
+
+    function soltarTodo(){
+      clearTimeout(reloj); reloj = null;
+      if (fila){ fila.classList.remove('arrastrando'); fila.style.transform = ''; }
+      cont.classList.remove('ordenando');
+      fila = null; arrastrando = false; idPuntero = null;
+    }
+
+    cont.addEventListener('pointerdown', function(e){
+      var f = e.target.closest ? e.target.closest('.row') : null;
+      if (!f || !cont.contains(f)) return;
+      if (e.target.closest('.icb')) return;        // los botones de la fila mandan
+      fila = f; y0 = yIni = e.clientY; idPuntero = e.pointerId;
+      reloj = setTimeout(function(){
+        arrastrando = true;
+        cont.classList.add('ordenando');
+        fila.classList.add('arrastrando');
+        try{ fila.setPointerCapture(idPuntero); }catch(err){}
+        buzz(12);
+      }, 320);
+    });
+
+    cont.addEventListener('pointermove', function(e){
+      if (!fila) return;
+      if (!arrastrando){
+        // si mueves antes de tiempo es que querías desplazar la lista
+        if (Math.abs(e.clientY - yIni) > 8) soltarTodo();
+        return;
+      }
+      e.preventDefault();
+      fila.style.transform = 'translateY(' + (e.clientY - y0) + 'px)';
+      var caja = fila.getBoundingClientRect(), centro = caja.top + caja.height / 2;
+      var hermanas = cont.querySelectorAll('.row');
+      for (var i = 0; i < hermanas.length; i++){
+        var h = hermanas[i];
+        if (h === fila) continue;
+        var rh = h.getBoundingClientRect();
+        if (centro > rh.top && centro < rh.bottom){
+          var ref = centro > rh.top + rh.height / 2 ? h.nextSibling : h;
+          // insertar donde ya está no mueve nada, pero sí reiniciaba el
+          // arrastre: la fila rebotaba en el sitio sin avanzar nunca
+          if (ref !== fila && ref !== fila.nextSibling){
+            cont.insertBefore(fila, ref);
+            y0 = e.clientY;                     // que siga pegada al dedo
+            fila.style.transform = 'translateY(0px)';
+          }
+          break;
+        }
+      }
+    });
+
+    function fin(){
+      if (arrastrando){
+        var ids = [];
+        var filas = cont.querySelectorAll('.row');
+        for (var i = 0; i < filas.length; i++) if (filas[i].dataset.id) ids.push(filas[i].dataset.id);
+        soltarTodo();
+        alSoltar(ids);
+        return;
+      }
+      soltarTodo();
+    }
+    cont.addEventListener('pointerup', fin);
+    cont.addEventListener('pointercancel', fin);
+  }
+
+  function reordenar(array, ids){
+    var mapa = {}, i;
+    for (i = 0; i < array.length; i++) mapa[array[i].id] = array[i];
+    var nuevo = [];
+    for (i = 0; i < ids.length; i++) if (mapa[ids[i]]){ nuevo.push(mapa[ids[i]]); delete mapa[ids[i]]; }
+    for (i = 0; i < array.length; i++) if (mapa[array[i].id]) nuevo.push(array[i]);   // por si acaso
+    return nuevo;
+  }
+
+  ordenable($('listDias'), function(ids){
+    perfil().dias = reordenar(perfil().dias, ids);
+    guardar(); pintarDias();
+  });
+  ordenable($('listEjs'), function(ids){
+    var d = dia(); if (!d) return;
+    d.ejercicios = reordenar(d.ejercicios, ids);
+    guardar(); pintarDia();
   });
 
   /* ============ arranque ============ */
