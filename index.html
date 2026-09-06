@@ -416,7 +416,8 @@
      - 'transient' : se mezcla con la música y solo la baja un momento, pero
                      obedece al interruptor de silencio.
      No hay una que gane siempre, así que lo decide quien entrena. */
-  var modoAudio = localStorage.getItem('gt.audio') || 'silencio';
+  var modoAudio = localStorage.getItem('gt.audio') || 'garantizado';
+  if (modoAudio === 'silencio') modoAudio = 'garantizado';   // nombre viejo
   function aplicarModoAudio(){
     try {
       if (navigator.audioSession)
@@ -453,10 +454,13 @@
     if (!run || run.paused || run.go) return;
     var queda = run.endAt - performance.now();
     if (queda <= 0){ run.tarde = true; finDescanso(); return; }
-    silence();
-    programarAvisos(queda / 1000);
     clearTimeout(to);
     to = setTimeout(finDescanso, queda);
+    // la pista de audio va por su cuenta y no se descuadra; solo el Web Audio
+    // necesita que se le vuelvan a poner los avisos en su sitio
+    if (modoMedia()) return;
+    silence();
+    programarAvisos(queda / 1000);
   }
   // Un bucle mudo mantiene viva la sesión de audio de iOS durante la cuenta atrás.
   function keepAudioAlive(on){
@@ -492,6 +496,69 @@
   }
 
   var AVISO_30 = 30, TICKS = 5, GO_DUR = 2.4;
+
+  /* ============ avisos como pista de audio ============ */
+  /* iOS congela la página en segundo plano y exige un toque para revivir el
+     Web Audio. Lo único que sigue sonando con la pantalla apagada es un
+     reproductor de medios. Así que se fabrica un WAV con todo el descanso
+     dentro (silencio + los pitidos en su sitio) y se reproduce del tirón.
+     A cambio, esto sí toma el control del audio y pausa la música. */
+  var media = null, mediaUrl = null;
+
+  function wavDeAvisos(secs){
+    var sr = 11025;
+    var largo = Math.ceil((secs + GO_DUR + 0.4) * sr);
+    var pcm = new Int16Array(largo);
+    function tono(desde, dur, hz, vol){
+      var i0 = Math.floor(desde * sr), n = Math.floor(dur * sr);
+      if (i0 < 0) return;
+      for (var i = 0; i < n; i++){
+        var t = i / sr;
+        var env = Math.min(1, t / 0.008, (dur - t) / 0.02);
+        if (env < 0) env = 0;
+        var v = (Math.sin(2 * Math.PI * hz * t) >= 0 ? 1 : -1) * vol * env;
+        var k = i0 + i;
+        if (k < largo){
+          var m = pcm[k] + v * 32000;
+          pcm[k] = m > 32767 ? 32767 : (m < -32767 ? -32767 : m);
+        }
+      }
+    }
+    if (secs > AVISO_30 + 2){
+      tono(secs - AVISO_30, .13, 520, .5);
+      tono(secs - AVISO_30 + 0.22, .13, 520, .5);
+    }
+    for (var i = TICKS; i >= 1; i--) if (secs > i + 0.3) tono(secs - i, .10, 700, .7);
+    tono(secs, GO_DUR, 1100, .95);
+
+    var bytes = new ArrayBuffer(44 + pcm.length * 2), v = new DataView(bytes);
+    function txt(o, t){ for (var i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); }
+    txt(0, 'RIFF'); v.setUint32(4, 36 + pcm.length * 2, true); txt(8, 'WAVEfmt ');
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true);
+    v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+    txt(36, 'data'); v.setUint32(40, pcm.length * 2, true);
+    new Int16Array(bytes, 44).set(pcm);
+    return new Blob([bytes], { type: 'audio/wav' });
+  }
+
+  function pararMedia(){
+    if (media){ try{ media.pause(); }catch(e){} media.src = ''; media = null; }
+    if (mediaUrl){ URL.revokeObjectURL(mediaUrl); mediaUrl = null; }
+  }
+  // se llama desde el toque que arranca o reanuda el descanso: iOS lo exige
+  function sonarMedia(secs){
+    pararMedia();
+    try {
+      mediaUrl = URL.createObjectURL(wavDeAvisos(secs));
+      media = new Audio(mediaUrl);
+      media.preload = 'auto';
+      var pr = media.play();
+      if (pr && pr.catch) pr.catch(function(){});
+    } catch(e){}
+  }
+  function modoMedia(){ return modoAudio === 'garantizado'; }
+
   function programarAvisos(secs){
     if (!audio()) return;
     var fin = ctx.currentTime + secs;
@@ -505,7 +572,13 @@
     beep(fin, GO_DUR, 1100, .95);                   // ¡YA!
   }
   function probarSonido(){
-    var c = audio(), b = $('snd'), t = $('sndTxt');
+    var b = $('snd'), t = $('sndTxt');
+    if (modoMedia()){
+      aplicarModoAudio(); sonarMedia(1.2);
+      b.className = 'ctrl ok'; t.textContent = '🔊 ¿SE OYE?';
+      return;
+    }
+    var c = audio();
     if (!c){ b.className = 'ctrl ko'; t.textContent = '✕ SIN AUDIO'; return; }
     silence();
     beep(c.currentTime + 0.02, .10, 700, .75);
@@ -581,7 +654,8 @@
       $('prepara').appendChild(document.createTextNode(mensaje.prepara));
     }
     keepAwake(true);
-    silence(); programarAvisos(secs);
+    if (modoMedia()){ aplicarModoAudio(); sonarMedia(secs); }
+    else { silence(); programarAvisos(secs); }
     clearTimeout(to); to = setTimeout(finDescanso, secs*1000);
     setAcc('var(--work)'); pintar(true);
     cancelAnimationFrame(raf); raf = requestAnimationFrame(bucle);
@@ -595,7 +669,7 @@
     var retraso = Math.max(0, (performance.now() - run.endAt) / 1000);
     var mudo = run.tarde && retraso > 60;
     buzz(mudo ? 40 : [200,90,200]);
-    if (run.tarde && !mudo){
+    if (run.tarde && !mudo && !modoMedia()){
       // el pitido programado se congeló con el móvil: suena ahora
       var ct = audio();
       if (ct){ silence(); beep(ct.currentTime + 0.05, GO_DUR, 1100, .95); }
@@ -642,7 +716,7 @@
     setAcc(left <= TICKS*1000 ? 'var(--warn)' : 'var(--work)');
     if (forzar) elPhase.innerHTML = run.etiqueta;
     elHint.textContent = run.paused ? 'PAUSA · toca para seguir'
-      : (!audioVivo() ? '⚠️ Sonido interrumpido · toca dos veces para recuperarlo'
+      : (!modoMedia() && !audioVivo() ? '⚠️ Sonido interrumpido · toca dos veces para recuperarlo'
       : (avisoPantalla ? '⚠️ ' + avisoPantalla + ' · toca para pausar' : 'Toca para pausar'));
   }
   function bucle(){
@@ -662,21 +736,22 @@
     if (run.paused){
       run.paused = false;
       run.endAt = performance.now() + run.left;
-      silence(); programarAvisos(run.left/1000);
+      if (modoMedia()) sonarMedia(run.left/1000);
+      else { silence(); programarAvisos(run.left/1000); }
       clearTimeout(to); to = setTimeout(finDescanso, run.left);
       elRun.classList.remove('paused');
       keepAwake(true); keepAudioAlive(true);
     } else {
       run.paused = true;
       run.left = Math.max(0, run.endAt - performance.now());
-      silence(); clearTimeout(to);
+      pararMedia(); silence(); clearTimeout(to);
       elRun.classList.add('paused');
       keepAudioAlive(false);
     }
     pintar(true);
   }
   function cerrarDescanso(){
-    silence(); clearTimeout(to); cancelAnimationFrame(raf);
+    pararMedia(); silence(); clearTimeout(to); cancelAnimationFrame(raf);
     keepAudioAlive(false);
     run = null; raf = null;
     elRun.hidden = true; elRun.classList.remove('paused');
@@ -1283,19 +1358,20 @@
 
   function pintarAudio(){
     var musica = (modoAudio === 'musica');
-    $('audioTit').textContent = musica ? '🎧 Suena con la música' : '🔇 Suena aunque esté en silencio';
+    $('audioTit').textContent = musica ? '🎧 Suena con la música' : '🔔 Aviso garantizado';
     $('audioSub').textContent = musica
-      ? 'La música baja un momento · el móvil no puede estar en silencio'
-      : 'Corta la música mientras suena el aviso';
+      ? 'La música sigue · hay que dejar la app abierta y la pantalla encendida'
+      : 'Suena con la pantalla apagada y en otra app · pausa la música';
   }
   $('audioBtn').addEventListener('click', function(){
-    modoAudio = (modoAudio === 'musica') ? 'silencio' : 'musica';
+    modoAudio = (modoAudio === 'musica') ? 'garantizado' : 'musica';
     localStorage.setItem('gt.audio', modoAudio);   // por si no hay nube
     DB.audio = modoAudio;
     guardar();                                     // y en la nube, con el resto
     aplicarModoAudio();
     pintarAudio();
     // suena al momento para que compruebes el cambio sin salir de aquí
+    if (modoMedia()){ sonarMedia(1.2); return; }
     var c = audio();
     if (c){ silence(); beep(c.currentTime + 0.02, .1, 700, .75); beep(c.currentTime + 0.3, .6, 1100, .95); }
   });
@@ -1431,7 +1507,7 @@
     // se reconstruye antes de reprogramar nada
     setTimeout(function(){
       if (!run) return;
-      if (!audioVivo()) recuperarAudio();
+      if (!modoMedia() && !audioVivo()) recuperarAudio();
       reprogramar();
     }, 150);
   });
