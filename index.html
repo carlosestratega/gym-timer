@@ -422,14 +422,35 @@
     var AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return null;
     aplicarModoAudio();
+    if (ctx && ctx.state === 'closed') ctx = null;
     if (!ctx){
       ctx = new AC();
       master = ctx.createGain(); master.gain.value = 1;
       var comp = ctx.createDynamicsCompressor();   // más volumen percibido
       master.connect(comp); comp.connect(ctx.destination);
     }
-    if (ctx.state === 'suspended') ctx.resume();
+    if (ctx.state !== 'running'){ try{ ctx.resume(); }catch(e){} }
     return ctx;
+  }
+
+  // Al salir de la app, Safari deja el contexto 'interrupted' y muchas veces
+  // ya no vuelve con resume(). Reconstruirlo es lo único que lo revive.
+  function recuperarAudio(){
+    try{ if (ctx) ctx.close(); }catch(e){}
+    ctx = null; master = null; alive = null; nodes = [];
+    return audio();
+  }
+  function audioVivo(){ return !!ctx && ctx.state === 'running'; }
+
+  // vuelve a dejar los avisos cuadrados con el tiempo que queda de verdad
+  function reprogramar(){
+    if (!run || run.paused || run.go) return;
+    var queda = run.endAt - performance.now();
+    if (queda <= 0){ run.tarde = true; finDescanso(); return; }
+    silence();
+    programarAvisos(queda / 1000);
+    clearTimeout(to);
+    to = setTimeout(finDescanso, queda);
   }
   // Un bucle mudo mantiene viva la sesión de audio de iOS durante la cuenta atrás.
   function keepAudioAlive(on){
@@ -615,7 +636,8 @@
     setAcc(left <= TICKS*1000 ? 'var(--warn)' : 'var(--work)');
     if (forzar) elPhase.innerHTML = run.etiqueta;
     elHint.textContent = run.paused ? 'PAUSA · toca para seguir'
-      : (avisoPantalla ? '⚠️ ' + avisoPantalla + ' · toca para pausar' : 'Toca para pausar');
+      : (!audioVivo() ? '⚠️ Sonido interrumpido · toca dos veces para recuperarlo'
+      : (avisoPantalla ? '⚠️ ' + avisoPantalla + ' · toca para pausar' : 'Toca para pausar'));
   }
   function bucle(){
     if (!run) return;
@@ -766,12 +788,38 @@
       i.innerHTML = '<div class="n">' + esc(d.nombre) + '</div><div class="s">' + resumenDia(d) + '</div>';
       i.addEventListener('click', function(){ diaAbierto = d.id; ir('scDia'); pintarDia(); });
       r.appendChild(i);
+      r.appendChild(icono('⧉', function(){ duplicarDia(d); }));
       if (d.ejercicios.length){
         r.appendChild(icono('▶', function(){ diaAbierto = d.id; empezarEntreno(); }));
       }
       l.appendChild(r);
     });
   }
+  // Duplicar un día para hacer versiones: el mismo entreno con los ejercicios
+  // en otro orden, o con variantes, sin volver a teclearlo entero.
+  function nombreVersion(base){
+    var raiz = base.replace(/\s+v\d+$/i, '');
+    var dias = perfil().dias;
+    for (var n = 2; n < 99; n++){
+      var cand = raiz + ' v' + n, libre = true;
+      for (var i = 0; i < dias.length; i++)
+        if (dias[i].nombre.toLowerCase() === cand.toLowerCase()) libre = false;
+      if (libre) return cand;
+    }
+    return raiz + ' copia';
+  }
+  function duplicarDia(d){
+    var copia = { id:uid(), nombre:nombreVersion(d.nombre), ejercicios:[] };
+    copia.ejercicios = d.ejercicios.map(function(e){
+      return { id:uid(), nombre:e.nombre, series:e.series, reps:e.reps, descanso:e.descanso };
+    });
+    perfil().dias.push(copia);
+    guardar();
+    buzz(8);
+    diaAbierto = copia.id;
+    ir('scDia'); pintarDia();     // se abre para reordenar o renombrar al momento
+  }
+
   $('addDia').addEventListener('click', function(){
     var n = perfil().dias.length + 1;
     pedirTexto('Nombre del día', 'Día ' + n, function(v){
@@ -1280,23 +1328,24 @@
   document.addEventListener('visibilitychange', function(){
     if (document.hidden || !run || run.paused || run.go) return;
     keepAwake(true);
-    audio();                                   // el contexto vuelve de la suspensión
-    var queda = run.endAt - performance.now();
-    if (queda <= 0){
-      run.tarde = true;
-      finDescanso();
-      return;
-    }
-    // el reloj del audio se congeló con el móvil: lo que quedaba programado
-    // sonaría con retraso, así que se tira y se programa de nuevo
-    silence();
-    programarAvisos(queda / 1000);
-    clearTimeout(to);
-    to = setTimeout(finDescanso, queda);
+    audio();
+    // el resume no siempre revive el contexto: se comprueba y si sigue muerto
+    // se reconstruye antes de reprogramar nada
+    setTimeout(function(){
+      if (!run) return;
+      if (!audioVivo()) recuperarAudio();
+      reprogramar();
+    }, 150);
   });
-  document.addEventListener('pointerdown', function armar(){
-    audio(); desbloquearVoz();
-    if (ctx && ctx.state === 'running') document.removeEventListener('pointerdown', armar);
+  // El toque es la única baza fiable en iOS: en cada uno se reintenta.
+  document.addEventListener('pointerdown', function(){
+    desbloquearVoz();
+    if (audioVivo()) return;
+    audio();
+    if (!audioVivo()){
+      recuperarAudio();
+      if (run && !run.paused && !run.go) reprogramar();
+    }
   });
   pintarInicio();
 
